@@ -31,12 +31,12 @@ static void handle_minute_tick(AppContextRef app_ctx, PebbleTickEvent* e) {
 
 static void handle_init(AppContextRef ctx) {
 
-  window_init(&s_data.window, "My Fuzzy Time");
+  window_init(&s_data.window, "Norwegian time");
   const bool animated = true;
   window_stack_push(&s_data.window, animated);
 
   window_set_background_color(&s_data.window, GColorBlack);
-  GFont font = fonts_get_system_font(FONT_KEY_DROID_SERIF_28_BOLD);
+  GFont font = fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK);
 
   text_layer_init(&s_data.label, GRect(0, 20, s_data.window.layer.frame.size.w, s_data.window.layer.frame.size.h - 20));
   text_layer_set_background_color(&s_data.label, GColorBlack);
