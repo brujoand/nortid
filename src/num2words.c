@@ -126,7 +126,7 @@ void fuzzy_time_to_words(int hours, int minutes, char* words, size_t length) {
     fuzzy_hours = fuzzy_hours + 1;
   }
   
-  if (fuzzy_hours >= 12) {
+  if (fuzzy_hours > 12) {
     fuzzy_hours = fuzzy_hours - 12;
   } else if (fuzzy_hours == 0) {
     fuzzy_hours = 12;
