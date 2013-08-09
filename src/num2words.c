@@ -40,8 +40,6 @@ static const char* const TENS[] = {
   "nitti"
 };
 
-static const char* STR_NOON = "middag";
-static const char* STR_MIDNIGHT = "midnatt";
 static const char* STR_QUARTER = "kvart";
 static const char* STR_TO = "på";
 static const char* STR_HALF = "halv";
@@ -82,8 +80,9 @@ void fuzzy_time_to_words(int hours, int minutes, char* words, size_t length) {
 
   size_t remaining = length;
   memset(words, 0, length);
-
-  if (fuzzy_minutes < 15) {
+  if (fuzzy_minutes == 0){
+    // Do nothing, omg omg omg
+  } else if (fuzzy_minutes < 15) {
     remaining -= append_number(words, fuzzy_minutes);
     remaining -= append_string(words, remaining, " ");
     remaining -= append_string(words, remaining, STR_PAST);
