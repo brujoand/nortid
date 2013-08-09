@@ -3,7 +3,7 @@
 
 static const char* const ONES[] = {
   "null",
-  "et",
+  "ett",
   "to",
   "tre",
   "fire",
@@ -16,12 +16,12 @@ static const char* const ONES[] = {
 
 static const char* const TEENS[] ={
   "",
-  "elve",
+  "elleve",
   "tolv",
   "tretten",
   "fjorten",
   "femten",
-  "seisten",
+  "seksten",
   "sytten",
   "atten",
   "nitten"
@@ -30,14 +30,14 @@ static const char* const TEENS[] ={
 static const char* const TENS[] = {
   "",
   "ti",
-  "tjue",
-  "tretti",
+  "tyve",
+  "tredve",
   "førti",
   "femti",
   "seksti",
   "sytti",
   "åtti",
-  "nitty"
+  "nitti"
 };
 
 static const char* STR_NOON = "middag";
