@@ -15,6 +15,7 @@ PBL_APP_INFO(MY_UUID,
 
 static struct CommonWordsData {
   TextLayer label;
+  TextLayer date;
   Window window;
   char buffer[BUFFER_SIZE];
 } s_data;
@@ -24,8 +25,19 @@ static void update_time(PblTm* t) {
   text_layer_set_text(&s_data.label, s_data.buffer);
 }
 
+static void update_date(PblTm* t){
+  static char dateText[] = "Xxx 00 Xxx";
+
+  PblTm currentTime;
+  get_time(&currentTime);
+
+  string_format_time(dateText, sizeof(dateText), "%a %e %b", &currentTime);
+  text_layer_set_text(&s_data.date, dateText);
+}
+
 static void handle_minute_tick(AppContextRef app_ctx, PebbleTickEvent* e) {
   update_time(e->tick_time);
+  update_date(e->tick_time);
 }
 
 
@@ -39,14 +51,20 @@ static void handle_init(AppContextRef ctx) {
   GFont font = fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK);
 
   text_layer_init(&s_data.label, GRect(0, 20, s_data.window.layer.frame.size.w, s_data.window.layer.frame.size.h - 20));
+  text_layer_init(&s_data.date, GRect(20, 140, s_data.window.layer.frame.size.w, s_data.window.layer.frame.size.h - 0));
   text_layer_set_background_color(&s_data.label, GColorBlack);
+  text_layer_set_background_color(&s_data.date, GColorBlack);
   text_layer_set_text_color(&s_data.label, GColorWhite);
+  text_layer_set_text_color(&s_data.date, GColorWhite);
   text_layer_set_font(&s_data.label, font);
+  text_layer_set_font(&s_data.date, fonts_get_system_font(FONT_KEY_ROBOTO_CONDENSED_21));
   layer_add_child(&s_data.window.layer, &s_data.label.layer);
+  layer_add_child(&s_data.window.layer, &s_data.date.layer);
 
   PblTm t;
   get_time(&t);
   update_time(&t);
+  update_date(&t);
 }
 
 
