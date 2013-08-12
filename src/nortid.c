@@ -45,20 +45,22 @@ static void handle_init(AppContextRef ctx) {
 
   window_init(&s_data.window, "Norwegian time");
   const bool animated = true;
+  
   window_stack_push(&s_data.window, animated);
-
   window_set_background_color(&s_data.window, GColorBlack);
-  GFont font = fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK);
 
-  text_layer_init(&s_data.label, GRect(0, 20, s_data.window.layer.frame.size.w, s_data.window.layer.frame.size.h - 20));
-  text_layer_init(&s_data.date, GRect(20, 140, s_data.window.layer.frame.size.w, s_data.window.layer.frame.size.h - 0));
-  text_layer_set_background_color(&s_data.label, GColorBlack);
-  text_layer_set_background_color(&s_data.date, GColorBlack);
+  text_layer_init(&s_data.label, GRect(0, 20, s_data.window.layer.frame.size.w, s_data.window.layer.frame.size.h - 20));  
+  text_layer_set_background_color(&s_data.label, GColorBlack);  
   text_layer_set_text_color(&s_data.label, GColorWhite);
-  text_layer_set_text_color(&s_data.date, GColorWhite);
-  text_layer_set_font(&s_data.label, font);
-  text_layer_set_font(&s_data.date, fonts_get_system_font(FONT_KEY_ROBOTO_CONDENSED_21));
+  text_layer_set_font(&s_data.label, fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK));
+  text_layer_set_text_alignment(&s_data.label, GTextAlignmentCenter);
   layer_add_child(&s_data.window.layer, &s_data.label.layer);
+
+  text_layer_init(&s_data.date, GRect(0, 140, s_data.window.layer.frame.size.w, s_data.window.layer.frame.size.h));
+  text_layer_set_background_color(&s_data.date, GColorBlack);
+  text_layer_set_text_color(&s_data.date, GColorWhite);
+  text_layer_set_font(&s_data.date, fonts_get_system_font(FONT_KEY_ROBOTO_CONDENSED_21));
+  text_layer_set_text_alignment(&s_data.date, GTextAlignmentCenter);
   layer_add_child(&s_data.window.layer, &s_data.date.layer);
 
   PblTm t;
