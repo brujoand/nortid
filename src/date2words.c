@@ -3,7 +3,6 @@
 #include "stdio.h"
 
 static const char* const MONTS[] = {
-  "null",
   "Jan",
   "Feb",
   "Mar",
@@ -45,5 +44,5 @@ void date_to_words(int day, int month, int weekday, char* words, size_t length) 
   append_string(words, remaining, " ");
   append_string(words, remaining, tmp);     
   append_string(words, remaining, " ");
-  append_string(words, remaining, MONTS[month-1]);    
+  append_string(words, remaining, MONTS[month]);    
 }
