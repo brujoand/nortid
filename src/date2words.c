@@ -38,7 +38,7 @@ void date_to_words(int day, int month, int weekday, char* words, size_t length) 
   size_t remaining = length;
   memset(words, 0, length);
   char tmp[15];
-  snprintf(tmp, 10, "%d", month);
+  snprintf(tmp, 10, "%d", day);
 
   append_string(words, remaining, DAYS[weekday]); 
   append_string(words, remaining, " ");
