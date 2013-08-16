@@ -22,6 +22,7 @@ static const char* const DAYS[] ={
   "Man",
   "Tirs",
   "Ons",
+  "Tors",
   "Fre",
   "Lør"
 };
