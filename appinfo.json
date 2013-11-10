@@ -3,7 +3,7 @@
   "shortName": "Nortid",
   "longName": "Nortid",
   "companyName": "Tindheim IT",
-  "versionCode": 2,
+  "versionCode": 3,
   "versionLabel": "2.0.0",
   "watchapp": {
     "watchface": true
