@@ -34,16 +34,16 @@ static size_t append_string(char* buffer, const size_t length, const char* str) 
   return (length > written) ? written : length;
 }
 
-void date_to_words(int day, int month, int weekday, char date_text[]) {
+void date_to_words(int day, int month, int weekday, char* words, size_t length) {
 
-  size_t remaining = strlen(date_text);
-  memset(date_text, 0, remaining);
+  size_t remaining = length;
+  memset(words, 0, length);
   char tmp[15];
   snprintf(tmp, 10, "%d", day);
 
-  append_string(date_text, remaining, DAYS[weekday]); 
-  append_string(date_text, remaining, " ");
-  append_string(date_text, remaining, tmp);     
-  append_string(date_text, remaining, " ");
-  append_string(date_text, remaining, MONTS[month]);    
+  append_string(words, remaining, DAYS[weekday]); 
+  append_string(words, remaining, " ");
+  append_string(words, remaining, tmp);     
+  append_string(words, remaining, " ");
+  append_string(words, remaining, MONTS[month]);    
 }

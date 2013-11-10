@@ -2,21 +2,24 @@
 #include "time2words.h"
 #include "date2words.h"
 
-
-char time_text[32];
-char date_text[32];
 TextLayer *time_layer;
 TextLayer *date_layer;
 Window *window;
 
+#define TIME_BUFFER_SIZE 86
+#define DATE_BUFFER_SIZE 20
+
+char time_buffer[TIME_BUFFER_SIZE];
+char date_buffer[DATE_BUFFER_SIZE];
+
 static void update_time(struct tm *time, TimeUnits units_changed) {
-  fuzzy_time_to_words(time->tm_hour, time->tm_min, time_text);
-  text_layer_set_text(time_layer, time_text);
+  fuzzy_time_to_words(time->tm_hour, time->tm_min, time_buffer, TIME_BUFFER_SIZE);
+  text_layer_set_text(time_layer, time_buffer);
 }
 
 static void update_date(struct tm *time, TimeUnits units_changed){
-  date_to_words(time->tm_mday, time->tm_mon, time->tm_wday, date_text);
-  text_layer_set_text(date_layer, date_text);
+  date_to_words(time->tm_mday, time->tm_mon, time->tm_wday, date_buffer, DATE_BUFFER_SIZE);
+  text_layer_set_text(date_layer, date_buffer);
 }
 
 TextLayer *add_text_layer(GRect rect, GFont font) {
@@ -37,8 +40,8 @@ static void setup_decorations() {
   GFont time_font = fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK);
   GFont date_font = fonts_get_system_font(FONT_KEY_ROBOTO_CONDENSED_21);
 
-  time_layer = add_text_layer(GRect(0, 20, 60, 22), time_font);
-  time_layer = add_text_layer(GRect(0, 140, 120, 50), date_font);
+  time_layer = add_text_layer(GRect(0, 20, 150, 100), time_font);
+  date_layer = add_text_layer(GRect(0, 140, 150, 50), date_font);
 }
 
 
