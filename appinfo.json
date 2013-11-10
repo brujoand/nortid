@@ -1,0 +1,15 @@
+{
+  "uuid": "0c4019a6-51f8-499d-ab25-239b4b8cb7f3",
+  "shortName": "Nortid",
+  "longName": "Nortid",
+  "companyName": "Tindheim IT",
+  "versionCode": 1,
+  "versionLabel": "1.0.0",
+  "watchapp": {
+    "watchface": false
+  },
+  "appKeys": {},
+  "resources": {
+    "media": []
+  }
+}
