@@ -12,14 +12,12 @@ Window *window;
 char time_buffer[TIME_BUFFER_SIZE];
 char date_buffer[DATE_BUFFER_SIZE];
 
-static void update_time(struct tm *time, TimeUnits units_changed) {
-  fuzzy_time_to_words(time->tm_hour, time->tm_min, time_buffer, TIME_BUFFER_SIZE);
-  text_layer_set_text(time_layer, time_buffer);
-}
-
-static void update_date(struct tm *time, TimeUnits units_changed){
+static void refresh_clock(struct tm *time, TimeUnits units_changed) {
   date_to_words(time->tm_mday, time->tm_mon, time->tm_wday, date_buffer, DATE_BUFFER_SIZE);
   text_layer_set_text(date_layer, date_buffer);
+
+  fuzzy_time_to_words(time->tm_hour, time->tm_min, time_buffer, TIME_BUFFER_SIZE);
+  text_layer_set_text(time_layer, time_buffer);
 }
 
 TextLayer *add_text_layer(GRect rect, GFont font) {
@@ -40,7 +38,7 @@ static void setup_decorations() {
   GFont time_font = fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK);
   GFont date_font = fonts_get_system_font(FONT_KEY_ROBOTO_CONDENSED_21);
 
-  time_layer = add_text_layer(GRect(0, 20, 150, 100), time_font);
+  time_layer = add_text_layer(GRect(0, 20, 140, 100), time_font);
   date_layer = add_text_layer(GRect(0, 140, 150, 50), date_font);
 }
 
@@ -50,11 +48,9 @@ int main() {
 
   time_t t = time(0);
   struct tm *time = localtime(&t);
-  update_time(time, -1);
-  update_date(time, -1);
+  refresh_clock(time, -1);
 
-  tick_timer_service_subscribe(MINUTE_UNIT, update_time);
-  tick_timer_service_subscribe(MINUTE_UNIT, update_date);
+  tick_timer_service_subscribe(MINUTE_UNIT, refresh_clock);
 
   app_event_loop();
 
