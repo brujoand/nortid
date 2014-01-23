@@ -6,6 +6,7 @@ TextLayer *time_layer;
 TextLayer *date_layer;
 Window *window;
 
+
 #define TIME_BUFFER_SIZE 86
 #define DATE_BUFFER_SIZE 20
 

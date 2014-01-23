@@ -4,14 +4,14 @@
 static const char* const ONES[] = {
   "null",
   "ett",
-  "to",
+  "två",
   "tre",
-  "fire",
+  "fyra",
   "fem",
-  "seks",
-  "syv",
-  "åtte",
-  "ni"
+  "sex",
+  "sju",
+  "åtta",
+  "nie"
 };
 
 static const char* const TEENS[] ={
@@ -29,9 +29,9 @@ static const char* const TEENS[] ={
 
 static const char* const TENS[] = {
   "",
-  "ti",
-  "tyve",
-  "tredve",
+  "tie",
+  "tjuge",
+  "tretti",
   "førti",
   "femti",
   "seksti",

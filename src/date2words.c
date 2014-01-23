@@ -7,24 +7,24 @@ static const char* const MONTS[] = {
   "Feb",
   "Mar",
   "Apr",
-  "Mai",
+  "Maj",
   "Jun",
   "Jul",
   "Aug",
   "Sep",
   "Okt",
   "Nov",
-  "Des"
+  "Dec"
 };
 
 static const char* const DAYS[] ={
-  "Søn",
-  "Man",
-  "Tirs",
+  "Sön",
+  "Mån",
+  "Tir",
   "Ons",
-  "Tors",
+  "Tor",
   "Fre",
-  "Lør"
+  "Lör"
 };
 
 static size_t append_string(char* buffer, const size_t length, const char* str) {
