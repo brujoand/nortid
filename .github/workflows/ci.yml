@@ -44,19 +44,16 @@ jobs:
       - name: Install mise
         uses: jdx/mise-action@v2
 
-      - name: Install Python 2.7 via pyenv
+      - name: Install Python 2.7
         run: |
-          mise use pyenv
+          mise use python@2.7.18
           eval "$(mise activate bash)"
-          pyenv install 2.7.18
-          pyenv global 2.7.18
+          pip install virtualenv
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libsdl1.2debian libfdt1 npm
-          eval "$(mise activate bash)"
-          pip install virtualenv
 
       - name: Download Pebble SDK
         if: steps.sdk-cache.outputs.cache-hit != 'true'
@@ -71,7 +68,7 @@ jobs:
         run: |
           eval "$(mise activate bash)"
           cd ~/pebble-dev/pebble-sdk-4.5-linux64
-          virtualenv -p $(pyenv which python) .env
+          virtualenv -p $(mise which python) .env
           source .env/bin/activate
           pip install -r requirements.txt
 
@@ -105,19 +102,16 @@ jobs:
       - name: Install mise
         uses: jdx/mise-action@v2
 
-      - name: Install Python 2.7 via pyenv
+      - name: Install Python 2.7
         run: |
-          mise use pyenv
+          mise use python@2.7.18
           eval "$(mise activate bash)"
-          pyenv install 2.7.18
-          pyenv global 2.7.18
+          pip install virtualenv
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libsdl1.2debian libfdt1 npm xvfb
-          eval "$(mise activate bash)"
-          pip install virtualenv
 
       - name: Download Pebble SDK
         if: steps.sdk-cache.outputs.cache-hit != 'true'
@@ -133,7 +127,7 @@ jobs:
         run: |
           eval "$(mise activate bash)"
           cd ~/pebble-dev/pebble-sdk-4.5-linux64
-          virtualenv -p $(pyenv which python) .env
+          virtualenv -p $(mise which python) .env
           source .env/bin/activate
           pip install -r requirements.txt
 
