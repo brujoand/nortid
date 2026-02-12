@@ -30,35 +30,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     needs: lint-and-test
+    container:
+      image: rebble/pebble-sdk:latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
-      - name: Cache Pebble SDK
-        uses: actions/cache@v4
-        id: sdk-cache
-        with:
-          path: ~/.pebble-sdk
-          key: pebble-sdk-latest-v1
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libsdl1.2debian libfdt1 npm
-
-      - name: Install pebble-tool
-        run: |
-          pip install pebble-tool
-
-      - name: Install Pebble SDK
-        if: steps.sdk-cache.outputs.cache-hit != 'true'
-        run: |
-          pebble sdk install latest
 
       - name: Build watchface
         run: |
@@ -73,35 +49,16 @@ jobs:
   screenshots:
     runs-on: ubuntu-latest
     needs: build
+    container:
+      image: rebble/pebble-sdk:latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
-      - name: Cache Pebble SDK
-        uses: actions/cache@v4
-        id: sdk-cache
-        with:
-          path: ~/.pebble-sdk
-          key: pebble-sdk-latest-v1
-
-      - name: Install system dependencies
+      - name: Install Xvfb
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libsdl1.2debian libfdt1 npm xvfb
-
-      - name: Install pebble-tool
-        run: |
-          pip install pebble-tool
-
-      - name: Install Pebble SDK
-        if: steps.sdk-cache.outputs.cache-hit != 'true'
-        run: |
-          pebble sdk install latest
+          apt-get update
+          apt-get install -y xvfb
 
       - name: Download .pbw artifact
         uses: actions/download-artifact@v4
