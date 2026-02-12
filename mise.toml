@@ -1,2 +1,3 @@
 [tools]
+gh = "latest"
 "pipx:pre-commit" = "latest"
