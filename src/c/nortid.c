@@ -1,6 +1,7 @@
 #include <pebble.h>
-#include "time2words.h"
+
 #include "date2words.h"
+#include "time2words.h"
 
 TextLayer *time_layer;
 TextLayer *date_layer;
@@ -41,7 +42,6 @@ static void setup_decorations() {
   time_layer = add_text_layer(GRect(0, 20, 140, 100), time_font);
   date_layer = add_text_layer(GRect(0, 140, 150, 50), date_font);
 }
-
 
 int main() {
   setup_decorations();
