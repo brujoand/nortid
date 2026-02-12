@@ -34,49 +34,34 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
       - name: Cache Pebble SDK
         uses: actions/cache@v4
         id: sdk-cache
         with:
-          path: ~/pebble-dev
-          key: pebble-sdk-4.5-linux64-v2
-
-      - name: Install mise
-        uses: jdx/mise-action@v2
-
-      - name: Install Python 2.7
-        run: |
-          mise use python@2.7.18
-          eval "$(mise activate bash)"
-          pip install virtualenv
+          path: ~/.pebble-sdk
+          key: pebble-sdk-latest-v1
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libsdl1.2debian libfdt1 npm
 
-      - name: Download Pebble SDK
+      - name: Install pebble-tool
+        run: |
+          pip install pebble-tool
+
+      - name: Install Pebble SDK
         if: steps.sdk-cache.outputs.cache-hit != 'true'
         run: |
-          mkdir -p ~/pebble-dev
-          cd ~/pebble-dev
-          curl -L -o pebble-sdk.tar.bz2 https://rebble-sdk.s3.amazonaws.com/pebble-sdk-4.5-linux64.tar.bz2
-          tar xjf pebble-sdk.tar.bz2
-          rm pebble-sdk.tar.bz2
-
-      - name: Setup Python 2.7 virtualenv
-        run: |
-          eval "$(mise activate bash)"
-          cd ~/pebble-dev/pebble-sdk-4.5-linux64
-          virtualenv -p $(mise which python) .env
-          source .env/bin/activate
-          pip install -r requirements.txt
+          pebble sdk install latest
 
       - name: Build watchface
         run: |
-          eval "$(mise activate bash)"
-          export PATH=~/pebble-dev/pebble-sdk-4.5-linux64/bin:$PATH
-          source ~/pebble-dev/pebble-sdk-4.5-linux64/.env/bin/activate
           pebble build
 
       - name: Upload .pbw artifact
@@ -92,44 +77,31 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
       - name: Cache Pebble SDK
         uses: actions/cache@v4
         id: sdk-cache
         with:
-          path: ~/pebble-dev
-          key: pebble-sdk-4.5-linux64-v2
-
-      - name: Install mise
-        uses: jdx/mise-action@v2
-
-      - name: Install Python 2.7
-        run: |
-          mise use python@2.7.18
-          eval "$(mise activate bash)"
-          pip install virtualenv
+          path: ~/.pebble-sdk
+          key: pebble-sdk-latest-v1
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libsdl1.2debian libfdt1 npm xvfb
 
-      - name: Download Pebble SDK
-        if: steps.sdk-cache.outputs.cache-hit != 'true'
+      - name: Install pebble-tool
         run: |
-          mkdir -p ~/pebble-dev
-          cd ~/pebble-dev
-          curl -L -o pebble-sdk.tar.bz2 https://rebble-sdk.s3.amazonaws.com/pebble-sdk-4.5-linux64.tar.bz2
-          tar xjf pebble-sdk.tar.bz2
-          rm pebble-sdk.tar.bz2
+          pip install pebble-tool
 
-      - name: Setup Python 2.7 virtualenv
+      - name: Install Pebble SDK
         if: steps.sdk-cache.outputs.cache-hit != 'true'
         run: |
-          eval "$(mise activate bash)"
-          cd ~/pebble-dev/pebble-sdk-4.5-linux64
-          virtualenv -p $(mise which python) .env
-          source .env/bin/activate
-          pip install -r requirements.txt
+          pebble sdk install latest
 
       - name: Download .pbw artifact
         uses: actions/download-artifact@v4
@@ -144,9 +116,6 @@ jobs:
 
       - name: Generate screenshots
         run: |
-          eval "$(mise activate bash)"
-          export PATH=~/pebble-dev/pebble-sdk-4.5-linux64/bin:$PATH
-          source ~/pebble-dev/pebble-sdk-4.5-linux64/.env/bin/activate
           mkdir -p screenshots
 
           for platform in aplite basalt diorite chalk; do
