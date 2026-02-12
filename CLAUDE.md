@@ -43,3 +43,48 @@ Single-window Pebble watchface with two text layers (time and date).
 - Uses 12-hour format with fuzzy rounding
 - Quarter/half hours and "over"/"på" relative expressions
 - Example: 2:30 → "halv tre"
+
+## SDK Setup
+
+Install pebble-tool via pip:
+```bash
+pip install pebble-tool
+```
+
+## Testing
+
+Run unit tests (requires gcc):
+```bash
+make test
+```
+
+Run individual test suites:
+```bash
+make test-time
+make test-date
+```
+
+Clean test artifacts:
+```bash
+make clean
+```
+
+## Pre-commit Hooks
+
+Install pre-commit (via mise):
+```bash
+mise use pipx:pre-commit
+mise x -- pre-commit install
+```
+
+Run hooks manually:
+```bash
+mise x -- pre-commit run --all-files
+```
+
+Hooks configured:
+- trailing-whitespace
+- end-of-file-fixer
+- clang-format (Google style)
+- gitleaks (secret detection)
+- make test (unit tests)
