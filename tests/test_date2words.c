@@ -1,4 +1,4 @@
-#include "../src/date2words.h"
+#include "../src/c/date2words.h"
 #include "unity/src/unity.h"
 
 void setUp(void) {}
