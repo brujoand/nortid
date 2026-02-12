@@ -36,6 +36,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Disable analytics prompt
+        run: |
+          mkdir -p ~/.pebble-sdk
+          touch ~/.pebble-sdk/NO_TRACKING
+
       - name: Build watchface
         run: |
           pebble build
@@ -54,6 +59,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Disable analytics prompt
+        run: |
+          mkdir -p ~/.pebble-sdk
+          touch ~/.pebble-sdk/NO_TRACKING
 
       - name: Install Xvfb
         run: |
