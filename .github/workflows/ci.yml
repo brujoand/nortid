@@ -135,31 +135,41 @@ jobs:
 
       - name: Post screenshots to PR
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Upload images to GitHub and get URLs
+          upload_image() {
+            local file=$1
+            local response=$(gh api --method POST \
+              -H "Accept: application/vnd.github+json" \
+              /repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
+              -f body="![uploading]()" 2>&1 || true)
 
-            const body = `## Watchface Screenshots
+            # Use camo proxy by embedding in an issue comment temporarily
+            # Actually, we'll base64 encode and use data URLs won't work in GitHub
+            # Best approach: commit to a branch or use artifact URL
 
-            Screenshots generated for all platforms. Download from [workflow artifacts](${runUrl}).
+            echo ""
+          }
 
-            | Platform | Description |
-            |----------|-------------|
-            | aplite | Pebble Classic / Steel (B&W) |
-            | basalt | Pebble Time / Time Steel (Color) |
-            | diorite | Pebble 2 (B&W) |
-            | chalk | Pebble Time Round (Color, Round) |
+          # Create comment with inline images using GitHub's image proxy
+          # Images uploaded as part of PR comments get hosted by GitHub
+          COMMENT_BODY="## Watchface Screenshots
 
-            **Artifacts:**
-            - \`nortid-pbw\` - Compiled watchface (.pbw)
-            - \`screenshots\` - Platform screenshots (.png)
-            `;
+          | aplite | basalt | diorite | chalk |
+          |:------:|:------:|:-------:|:-----:|
+          | ![aplite](https://github.com/${{ github.repository }}/raw/${{ github.head_ref }}/screenshots/aplite.png) | ![basalt](https://github.com/${{ github.repository }}/raw/${{ github.head_ref }}/screenshots/basalt.png) | ![diorite](https://github.com/${{ github.repository }}/raw/${{ github.head_ref }}/screenshots/diorite.png) | ![chalk](https://github.com/${{ github.repository }}/raw/${{ github.head_ref }}/screenshots/chalk.png) |
+          | Pebble Classic | Pebble Time | Pebble 2 | Time Round |
 
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            });
+          **Artifacts:** [Download from workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+
+          # Commit screenshots to the PR branch so they can be displayed
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add screenshots/
+          git commit -m "Add generated screenshots [skip ci]" || true
+          git push origin HEAD:${{ github.head_ref }} || true
+
+          # Post comment
+          gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT_BODY"
