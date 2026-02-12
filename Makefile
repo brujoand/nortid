@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -std=c99
 
 UNITY_SRC = tests/unity/src/unity.c
-SRC_DIR = src
+SRC_DIR = src/c
 TEST_DIR = tests
 
 .PHONY: test test-time test-date clean
