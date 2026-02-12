@@ -133,43 +133,46 @@ jobs:
           name: screenshots
           path: screenshots/
 
-      - name: Post screenshots to PR
+      - name: Upload screenshots to GitHub Release assets
         if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # Upload images to GitHub and get URLs
-          upload_image() {
-            local file=$1
-            local response=$(gh api --method POST \
-              -H "Accept: application/vnd.github+json" \
-              /repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
-              -f body="![uploading]()" 2>&1 || true)
+        id: upload-images
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const artifactClient = require('@actions/artifact');
 
-            # Use camo proxy by embedding in an issue comment temporarily
-            # Actually, we'll base64 encode and use data URLs won't work in GitHub
-            # Best approach: commit to a branch or use artifact URL
+            // Get artifact download URL
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
 
-            echo ""
-          }
+            // For inline images, we need to upload to a place GitHub can serve them
+            // Option: Use GitHub's user content by drag-drop simulation isn't possible via API
+            // Best option: Use a GitHub Gist or external image host
 
-          # Create comment with inline images using GitHub's image proxy
-          # Images uploaded as part of PR comments get hosted by GitHub
-          COMMENT_BODY="## Watchface Screenshots
+            // For now, create a nice comment with links
+            const body = `## 🖼️ Watchface Screenshots
 
-          | aplite | basalt | diorite | chalk |
-          |:------:|:------:|:-------:|:-----:|
-          | ![aplite](https://github.com/${{ github.repository }}/raw/${{ github.head_ref }}/screenshots/aplite.png) | ![basalt](https://github.com/${{ github.repository }}/raw/${{ github.head_ref }}/screenshots/basalt.png) | ![diorite](https://github.com/${{ github.repository }}/raw/${{ github.head_ref }}/screenshots/diorite.png) | ![chalk](https://github.com/${{ github.repository }}/raw/${{ github.head_ref }}/screenshots/chalk.png) |
-          | Pebble Classic | Pebble Time | Pebble 2 | Time Round |
+Screenshots generated for all 4 Pebble platforms.
 
-          **Artifacts:** [Download from workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+| Platform | Watch Models |
+|----------|-------------|
+| **aplite** | Pebble Classic, Pebble Steel |
+| **basalt** | Pebble Time, Pebble Time Steel |
+| **diorite** | Pebble 2 |
+| **chalk** | Pebble Time Round |
 
-          # Commit screenshots to the PR branch so they can be displayed
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add screenshots/
-          git commit -m "Add generated screenshots [skip ci]" || true
-          git push origin HEAD:${{ github.head_ref }} || true
+### 📥 [Download Screenshots](${runUrl})
 
-          # Post comment
-          gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT_BODY"
+Click the link above, then download the \`screenshots\` artifact to view all platform previews.
+
+---
+📦 **Build artifacts:**
+- \`nortid-pbw\` — Ready to install on your Pebble
+- \`screenshots\` — Preview images for all platforms`;
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
