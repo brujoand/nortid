@@ -133,46 +133,16 @@ jobs:
           name: screenshots
           path: screenshots/
 
-      - name: Upload screenshots to GitHub Release assets
+      - name: Comment on PR with artifact links
         if: github.event_name == 'pull_request'
-        id: upload-images
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const artifactClient = require('@actions/artifact');
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} --body "## Screenshots
 
-            // Get artifact download URL
-            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+          Screenshots generated for all Pebble platforms.
 
-            // For inline images, we need to upload to a place GitHub can serve them
-            // Option: Use GitHub's user content by drag-drop simulation isn't possible via API
-            // Best option: Use a GitHub Gist or external image host
+          **Download artifacts from:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-            // For now, create a nice comment with links
-            const body = `## 🖼️ Watchface Screenshots
-
-Screenshots generated for all 4 Pebble platforms.
-
-| Platform | Watch Models |
-|----------|-------------|
-| **aplite** | Pebble Classic, Pebble Steel |
-| **basalt** | Pebble Time, Pebble Time Steel |
-| **diorite** | Pebble 2 |
-| **chalk** | Pebble Time Round |
-
-### 📥 [Download Screenshots](${runUrl})
-
-Click the link above, then download the \`screenshots\` artifact to view all platform previews.
-
----
-📦 **Build artifacts:**
-- \`nortid-pbw\` — Ready to install on your Pebble
-- \`screenshots\` — Preview images for all platforms`;
-
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            });
+          - \`nortid-pbw\` — Ready to install
+          - \`screenshots\` — Preview images"
