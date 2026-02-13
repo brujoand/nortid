@@ -1,0 +1,30 @@
+[
+  {
+    "type": "heading",
+    "defaultValue": "Nortid Settings"
+  },
+  {
+    "type": "section",
+    "items": [
+      {
+        "type": "heading",
+        "defaultValue": "Language"
+      },
+      {
+        "type": "select",
+        "messageKey": "Language",
+        "defaultValue": "0",
+        "label": "Display Language",
+        "options": [
+          { "label": "Norsk", "value": "0" },
+          { "label": "Dansk", "value": "1" },
+          { "label": "Svenska", "value": "2" }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "submit",
+    "defaultValue": "Save"
+  }
+]

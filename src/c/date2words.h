@@ -1,6 +1,7 @@
 #pragma once
 
-#include <stdio.h>
-#include <string.h>
+#include <stddef.h>
 
-void date_to_words(int day, int month, int weekday, char* words, size_t length);
+#include "lang/lang.h"
+
+void date_to_words(Language lang, int day, int month, int weekday, char* words, size_t length);

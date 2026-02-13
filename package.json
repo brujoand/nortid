@@ -23,6 +23,9 @@
     "resources": {
       "media": []
     },
-    "messageKeys": {}
+    "messageKeys": {
+      "Language": 0
+    },
+    "capabilities": ["configurable"]
   }
 }
