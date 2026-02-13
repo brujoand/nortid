@@ -3,9 +3,9 @@
 #include "date2words.h"
 #include "time2words.h"
 
-TextLayer *time_layer;
-TextLayer *date_layer;
-Window *window;
+static TextLayer *time_layer;
+static TextLayer *date_layer;
+static Window *window;
 
 #define TIME_BUFFER_SIZE 86
 #define DATE_BUFFER_SIZE 20
@@ -43,16 +43,25 @@ static void setup_decorations() {
   date_layer = add_text_layer(GRect(0, 140, 150, 50), date_font);
 }
 
-int main() {
+static void deinit(void) {
+  tick_timer_service_unsubscribe();
+  text_layer_destroy(time_layer);
+  text_layer_destroy(date_layer);
+  window_destroy(window);
+}
+
+int main(void) {
   setup_decorations();
 
   time_t t = time(0);
-  struct tm *time = localtime(&t);
-  refresh_clock(time, -1);
+  struct tm *tm = localtime(&t);
+  refresh_clock(tm, MINUTE_UNIT);
 
   tick_timer_service_subscribe(MINUTE_UNIT, refresh_clock);
 
   app_event_loop();
+
+  deinit();
 
   return 0;
 }
