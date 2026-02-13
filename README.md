@@ -3,7 +3,7 @@ nortid
 
 A Pebble watchface displaying time and date in Norwegian text.
 
-![basalt](https://github.com/brujoand/nortid/releases/download/v3.0.0/basalt.png)
+![basalt](https://github.com/brujoand/nortid/releases/download/v3.1.0/basalt.png)
 
 ## Install
 
