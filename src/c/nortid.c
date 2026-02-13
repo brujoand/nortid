@@ -58,11 +58,24 @@ static void setup_decorations(void) {
   window_stack_push(window, true);
   window_set_background_color(window, GColorBlack);
 
+  Layer* root = window_get_root_layer(window);
+  GRect bounds = layer_get_bounds(root);
+
   GFont time_font = fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK);
   GFont date_font = fonts_get_system_font(FONT_KEY_ROBOTO_CONDENSED_21);
 
-  time_layer = add_text_layer(GRect(0, 20, 140, 100), time_font);
-  date_layer = add_text_layer(GRect(0, 140, 150, 50), date_font);
+#if PBL_ROUND
+  int inset = 18;
+  int time_y = 40;
+  int date_y = bounds.size.h - 60;
+#else
+  int inset = 2;
+  int time_y = 25;
+  int date_y = bounds.size.h - 45;
+#endif
+
+  time_layer = add_text_layer(GRect(inset, time_y, bounds.size.w - (2 * inset), 80), time_font);
+  date_layer = add_text_layer(GRect(inset, date_y, bounds.size.w - (2 * inset), 30), date_font);
 }
 
 static void load_settings(void) {
