@@ -16,33 +16,32 @@ static const char* STR_TO = "på";
 static const char* STR_HALF = "halv";
 static const char* STR_PAST = "over";
 
-static size_t append_number(char* words, int num) {
+static size_t append_string(char* buffer, size_t remaining, const char* str) {
+  if (remaining <= 1) return 0;
+  size_t current_len = strlen(buffer);
+  size_t str_len = strlen(str);
+  size_t space = remaining - 1;
+  size_t to_copy = (str_len < space) ? str_len : space;
+  strncat(buffer + current_len, str, to_copy);
+  return to_copy;
+}
+
+static size_t append_number(char* buffer, size_t remaining, int num) {
   int tens_val = num / 10 % 10;
   int ones_val = num % 10;
-
-  size_t len = 0;
+  size_t written = 0;
 
   if (tens_val > 0) {
     if (tens_val == 1 && num != 10) {
-      strcat(words, TEENS[ones_val]);
-      return strlen(TEENS[ones_val]);
+      return append_string(buffer, remaining, TEENS[ones_val]);
     }
-    strcat(words, TENS[tens_val]);
-    len += strlen(TENS[tens_val]);
+    written += append_string(buffer, remaining - written, TENS[tens_val]);
   }
 
   if (ones_val > 0 || num == 0) {
-    strcat(words, ONES[ones_val]);
-    len += strlen(ONES[ones_val]);
+    written += append_string(buffer, remaining - written, ONES[ones_val]);
   }
-  return len;
-}
-
-static size_t append_string(char* buffer, const size_t length, const char* str) {
-  strncat(buffer, str, length);
-
-  size_t written = strlen(str);
-  return (length > written) ? written : length;
+  return written;
 }
 
 void fuzzy_time_to_words(int hours, int minutes, char* words, size_t length) {
@@ -51,10 +50,9 @@ void fuzzy_time_to_words(int hours, int minutes, char* words, size_t length) {
 
   size_t remaining = length;
   memset(words, 0, length);
-  if (fuzzy_minutes == 0) {
-    // Do nothing, omg omg omg
-  } else if (fuzzy_minutes < 15) {
-    remaining -= append_number(words, fuzzy_minutes);
+
+  if (fuzzy_minutes > 0 && fuzzy_minutes < 15) {
+    remaining -= append_number(words, remaining, fuzzy_minutes);
     remaining -= append_string(words, remaining, " ");
     remaining -= append_string(words, remaining, STR_PAST);
     remaining -= append_string(words, remaining, " ");
@@ -63,8 +61,8 @@ void fuzzy_time_to_words(int hours, int minutes, char* words, size_t length) {
     remaining -= append_string(words, remaining, " ");
     remaining -= append_string(words, remaining, STR_PAST);
     remaining -= append_string(words, remaining, " ");
-  } else if (fuzzy_minutes < 30) {
-    remaining -= append_number(words, 30 - fuzzy_minutes);
+  } else if (fuzzy_minutes > 15 && fuzzy_minutes < 30) {
+    remaining -= append_number(words, remaining, 30 - fuzzy_minutes);
     remaining -= append_string(words, remaining, " ");
     remaining -= append_string(words, remaining, STR_TO);
     remaining -= append_string(words, remaining, " ");
@@ -73,8 +71,8 @@ void fuzzy_time_to_words(int hours, int minutes, char* words, size_t length) {
   } else if (fuzzy_minutes == 30) {
     remaining -= append_string(words, remaining, STR_HALF);
     remaining -= append_string(words, remaining, " ");
-  } else if (fuzzy_minutes < 45) {
-    remaining -= append_number(words, fuzzy_minutes - 30);
+  } else if (fuzzy_minutes > 30 && fuzzy_minutes < 45) {
+    remaining -= append_number(words, remaining, fuzzy_minutes - 30);
     remaining -= append_string(words, remaining, " ");
     remaining -= append_string(words, remaining, STR_PAST);
     remaining -= append_string(words, remaining, " ");
@@ -85,8 +83,8 @@ void fuzzy_time_to_words(int hours, int minutes, char* words, size_t length) {
     remaining -= append_string(words, remaining, " ");
     remaining -= append_string(words, remaining, STR_TO);
     remaining -= append_string(words, remaining, " ");
-  } else if (fuzzy_minutes < 60) {
-    remaining -= append_number(words, 60 - fuzzy_minutes);
+  } else if (fuzzy_minutes > 45) {
+    remaining -= append_number(words, remaining, 60 - fuzzy_minutes);
     remaining -= append_string(words, remaining, " ");
     remaining -= append_string(words, remaining, STR_TO);
     remaining -= append_string(words, remaining, " ");
@@ -102,5 +100,5 @@ void fuzzy_time_to_words(int hours, int minutes, char* words, size_t length) {
     fuzzy_hours = 12;
   }
 
-  remaining -= append_number(words, fuzzy_hours);
+  append_number(words, remaining, fuzzy_hours);
 }
