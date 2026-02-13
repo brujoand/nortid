@@ -1,8 +1,24 @@
 nortid
 ======
 
-A simple pebble watchface, in norwegian text
+A Pebble watchface displaying time and date in Norwegian text.
 
+![basalt](https://github.com/brujoand/nortid/releases/download/v3.0.0/basalt.png)
 
-Based on the fuzzytime, but then it evolved a bit.
-So now it's not fuzzy.
+## Install
+
+Download `nortid.pbw` from the [latest release](https://github.com/brujoand/nortid/releases/latest) and sideload via the Pebble/Rebble app.
+
+## Build
+
+```bash
+pip install pebble-tool
+pebble sdk install latest
+pebble build
+```
+
+## Test
+
+```bash
+make test
+```
