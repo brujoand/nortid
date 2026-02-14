@@ -50,7 +50,10 @@
     },
     "messageKeys": {
       "Language": 0,
-      "ShowDate": 1
+      "ShowDate": 1,
+      "BackgroundColor": 2,
+      "TimeColor": 3,
+      "DateColor": 4
     },
     "capabilities": ["configurable"]
   }

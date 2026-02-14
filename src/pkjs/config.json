@@ -39,6 +39,33 @@
     ]
   },
   {
+    "type": "section",
+    "items": [
+      {
+        "type": "heading",
+        "defaultValue": "Colors"
+      },
+      {
+        "type": "color",
+        "messageKey": "BackgroundColor",
+        "defaultValue": "0x000000",
+        "label": "Background Color"
+      },
+      {
+        "type": "color",
+        "messageKey": "TimeColor",
+        "defaultValue": "0xFFFFFF",
+        "label": "Time Text Color"
+      },
+      {
+        "type": "color",
+        "messageKey": "DateColor",
+        "defaultValue": "0xAAAAAA",
+        "label": "Date Text Color"
+      }
+    ]
+  },
+  {
     "type": "submit",
     "defaultValue": "Save"
   }
