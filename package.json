@@ -24,7 +24,8 @@
       "media": []
     },
     "messageKeys": {
-      "Language": 0
+      "Language": 0,
+      "ShowDate": 1
     },
     "capabilities": ["configurable"]
   }
