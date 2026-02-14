@@ -82,9 +82,23 @@ Run hooks manually:
 mise x -- pre-commit run --all-files
 ```
 
+Install the commit-msg hook too:
+```bash
+mise x -- pre-commit install --hook-type commit-msg
+```
+
 Hooks configured:
 - trailing-whitespace
 - end-of-file-fixer
 - clang-format (Google style)
 - gitleaks (secret detection)
 - make test (unit tests)
+- conventional-commit (commit-msg stage, enforces `type: message` format)
+
+## Commit Convention
+
+All commits must use [Conventional Commits](https://www.conventionalcommits.org/) format: `type(scope)?: description`
+
+Prefixes: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
+
+Append `!` for breaking changes (e.g. `feat!: remove legacy API`)

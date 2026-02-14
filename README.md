@@ -24,3 +24,12 @@ pebble build
 ```bash
 make test
 ```
+
+## Commit messages
+
+Commits must follow [Conventional Commits](https://www.conventionalcommits.org/) to drive automatic versioning:
+
+- `fix: ...` — patch bump (e.g. 1.0.0 → 1.0.1)
+- `feat: ...` — minor bump (e.g. 1.0.0 → 1.1.0)
+- `feat!: ...` or `BREAKING CHANGE` in body — major bump (e.g. 1.0.0 → 2.0.0)
+- Other prefixes: `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
