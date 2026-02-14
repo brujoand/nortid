@@ -20,12 +20,19 @@ static Language current_language = LANG_NO;
 #define DATE_BUFFER_SIZE 20
 #define PERSIST_KEY_LANGUAGE 1
 #define PERSIST_KEY_SHOW_DATE 2
+#define PERSIST_KEY_BG_COLOR 3
+#define PERSIST_KEY_TIME_COLOR 4
+#define PERSIST_KEY_DATE_COLOR 5
 #define LAYER_SPACING 8
 #define TIME_LAYER_HEIGHT 80
 #define DATE_LAYER_HEIGHT 30
 
 static bool show_date = true;
 static AppTimer* hide_date_timer = NULL;
+
+static GColor bg_color;
+static GColor time_color;
+static GColor date_color;
 
 static char time_buffer[TIME_BUFFER_SIZE];
 static char date_buffer[DATE_BUFFER_SIZE];
@@ -87,10 +94,10 @@ static void force_refresh(void) {
   refresh_clock(tm, MINUTE_UNIT);
 }
 
-static TextLayer* add_text_layer(GRect rect, GFont font) {
+static TextLayer* add_text_layer(GRect rect, GFont font, GColor text_clr) {
   TextLayer* layer = text_layer_create(rect);
-  text_layer_set_text_color(layer, GColorWhite);
-  text_layer_set_background_color(layer, GColorBlack);
+  text_layer_set_text_color(layer, text_clr);
+  text_layer_set_background_color(layer, GColorClear);
   text_layer_set_font(layer, font);
   text_layer_set_text_alignment(layer, GTextAlignmentCenter);
   layer_add_child(window_get_root_layer(window), text_layer_get_layer(layer));
@@ -136,6 +143,33 @@ static void inbox_received_handler(DictionaryIterator* iter, void* context) {
     changed = true;
   }
 
+  Tuple* bg_tuple = dict_find(iter, MESSAGE_KEY_BackgroundColor);
+  if (bg_tuple) {
+    int bg_hex = bg_tuple->value->int32;
+    persist_write_int(PERSIST_KEY_BG_COLOR, bg_hex);
+    bg_color = GColorFromHEX(bg_hex);
+    window_set_background_color(window, bg_color);
+    changed = true;
+  }
+
+  Tuple* time_tuple = dict_find(iter, MESSAGE_KEY_TimeColor);
+  if (time_tuple) {
+    int time_hex = time_tuple->value->int32;
+    persist_write_int(PERSIST_KEY_TIME_COLOR, time_hex);
+    time_color = GColorFromHEX(time_hex);
+    text_layer_set_text_color(time_layer, time_color);
+    changed = true;
+  }
+
+  Tuple* date_tuple = dict_find(iter, MESSAGE_KEY_DateColor);
+  if (date_tuple) {
+    int date_hex = date_tuple->value->int32;
+    persist_write_int(PERSIST_KEY_DATE_COLOR, date_hex);
+    date_color = GColorFromHEX(date_hex);
+    text_layer_set_text_color(date_layer, date_color);
+    changed = true;
+  }
+
   force_refresh();
 
   if (changed) {
@@ -146,7 +180,7 @@ static void inbox_received_handler(DictionaryIterator* iter, void* context) {
 static void setup_decorations(void) {
   window = window_create();
   window_stack_push(window, true);
-  window_set_background_color(window, GColorBlack);
+  window_set_background_color(window, bg_color);
 
   Layer* root = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(root);
@@ -163,24 +197,33 @@ static void setup_decorations(void) {
 #endif
 
   time_layer_width = bounds.size.w - (2 * layer_inset);
-  time_layer =
-      add_text_layer(GRect(layer_inset, 0, time_layer_width, TIME_LAYER_HEIGHT), time_fonts[0]);
-  date_layer =
-      add_text_layer(GRect(layer_inset, 0, time_layer_width, DATE_LAYER_HEIGHT), date_font);
-
-#if PBL_COLOR
-  text_layer_set_text_color(date_layer, GColorLightGray);
-#endif
+  time_layer = add_text_layer(GRect(layer_inset, 0, time_layer_width, TIME_LAYER_HEIGHT),
+                              time_fonts[0], time_color);
+  date_layer = add_text_layer(GRect(layer_inset, 0, time_layer_width, DATE_LAYER_HEIGHT), date_font,
+                              date_color);
 
   layer_set_hidden(text_layer_get_layer(date_layer), !show_date);
 }
 
 static void load_settings(void) {
+  bg_color = GColorBlack;
+  time_color = GColorWhite;
+  date_color = GColorLightGray;
+
   if (persist_exists(PERSIST_KEY_LANGUAGE)) {
     current_language = (Language)persist_read_int(PERSIST_KEY_LANGUAGE);
   }
   if (persist_exists(PERSIST_KEY_SHOW_DATE)) {
     show_date = persist_read_bool(PERSIST_KEY_SHOW_DATE);
+  }
+  if (persist_exists(PERSIST_KEY_BG_COLOR)) {
+    bg_color = GColorFromHEX(persist_read_int(PERSIST_KEY_BG_COLOR));
+  }
+  if (persist_exists(PERSIST_KEY_TIME_COLOR)) {
+    time_color = GColorFromHEX(persist_read_int(PERSIST_KEY_TIME_COLOR));
+  }
+  if (persist_exists(PERSIST_KEY_DATE_COLOR)) {
+    date_color = GColorFromHEX(persist_read_int(PERSIST_KEY_DATE_COLOR));
   }
 }
 
@@ -204,7 +247,7 @@ int main(void) {
   setup_decorations();
 
   app_message_register_inbox_received(inbox_received_handler);
-  app_message_open(64, 64);
+  app_message_open(128, 128);
 
   force_refresh();
 
