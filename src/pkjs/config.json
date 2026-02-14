@@ -24,6 +24,21 @@
     ]
   },
   {
+    "type": "section",
+    "items": [
+      {
+        "type": "heading",
+        "defaultValue": "Display"
+      },
+      {
+        "type": "toggle",
+        "messageKey": "ShowDate",
+        "label": "Show Date",
+        "defaultValue": true
+      }
+    ]
+  },
+  {
     "type": "submit",
     "defaultValue": "Save"
   }

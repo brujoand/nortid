@@ -13,6 +13,9 @@ static Language current_language = LANG_NO;
 #define TIME_BUFFER_SIZE 86
 #define DATE_BUFFER_SIZE 20
 #define PERSIST_KEY_LANGUAGE 1
+#define PERSIST_KEY_SHOW_DATE 2
+
+static bool show_date = true;
 
 static char time_buffer[TIME_BUFFER_SIZE];
 static char date_buffer[DATE_BUFFER_SIZE];
@@ -49,8 +52,16 @@ static void inbox_received_handler(DictionaryIterator* iter, void* context) {
   if (lang_tuple) {
     current_language = (Language)lang_tuple->value->int32;
     persist_write_int(PERSIST_KEY_LANGUAGE, current_language);
-    force_refresh();
   }
+
+  Tuple* show_date_tuple = dict_find(iter, MESSAGE_KEY_ShowDate);
+  if (show_date_tuple) {
+    show_date = (bool)show_date_tuple->value->int32;
+    persist_write_bool(PERSIST_KEY_SHOW_DATE, show_date);
+    layer_set_hidden(text_layer_get_layer(date_layer), !show_date);
+  }
+
+  force_refresh();
 }
 
 static void setup_decorations(void) {
@@ -65,22 +76,26 @@ static void setup_decorations(void) {
   GFont date_font = fonts_get_system_font(FONT_KEY_ROBOTO_CONDENSED_21);
 
 #if PBL_ROUND
-  int inset = 18;
+  int inset = 22;
   int time_y = 40;
   int date_y = bounds.size.h - 60;
 #else
-  int inset = 2;
+  int inset = 6;
   int time_y = 25;
   int date_y = bounds.size.h - 45;
 #endif
 
   time_layer = add_text_layer(GRect(inset, time_y, bounds.size.w - (2 * inset), 80), time_font);
   date_layer = add_text_layer(GRect(inset, date_y, bounds.size.w - (2 * inset), 30), date_font);
+  layer_set_hidden(text_layer_get_layer(date_layer), !show_date);
 }
 
 static void load_settings(void) {
   if (persist_exists(PERSIST_KEY_LANGUAGE)) {
     current_language = (Language)persist_read_int(PERSIST_KEY_LANGUAGE);
+  }
+  if (persist_exists(PERSIST_KEY_SHOW_DATE)) {
+    show_date = persist_read_bool(PERSIST_KEY_SHOW_DATE);
   }
 }
 
