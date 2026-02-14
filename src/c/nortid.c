@@ -7,6 +7,8 @@
 static TextLayer* time_layer;
 static TextLayer* date_layer;
 static Window* window;
+static GFont time_font;
+static GFont date_font;
 
 static Language current_language = LANG_NO;
 
@@ -72,8 +74,8 @@ static void setup_decorations(void) {
   Layer* root = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(root);
 
-  GFont time_font = fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK);
-  GFont date_font = fonts_get_system_font(FONT_KEY_ROBOTO_CONDENSED_21);
+  time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_LATO_BOLD_30));
+  date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_LATO_21));
 
 #if PBL_ROUND
   int inset = 22;
@@ -103,6 +105,8 @@ static void deinit(void) {
   tick_timer_service_unsubscribe();
   text_layer_destroy(time_layer);
   text_layer_destroy(date_layer);
+  fonts_unload_custom_font(time_font);
+  fonts_unload_custom_font(date_font);
   window_destroy(window);
 }
 
