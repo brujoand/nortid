@@ -7,8 +7,11 @@
 static TextLayer* time_layer;
 static TextLayer* date_layer;
 static Window* window;
-static GFont time_font;
 static GFont date_font;
+
+#define TIME_FONT_COUNT 3
+static GFont time_fonts[TIME_FONT_COUNT];
+static int time_layer_width;
 
 static Language current_language = LANG_NO;
 
@@ -22,6 +25,19 @@ static bool show_date = true;
 static char time_buffer[TIME_BUFFER_SIZE];
 static char date_buffer[DATE_BUFFER_SIZE];
 
+static GFont select_time_font(const char* text) {
+  GSize max_size = GSize(time_layer_width, 80);
+  for (int i = 0; i < TIME_FONT_COUNT; i++) {
+    GSize text_size = graphics_text_layout_get_content_size(
+        text, time_fonts[i], GRect(0, 0, max_size.w, max_size.h), GTextOverflowModeWordWrap,
+        GTextAlignmentCenter);
+    if (text_size.w <= max_size.w) {
+      return time_fonts[i];
+    }
+  }
+  return time_fonts[TIME_FONT_COUNT - 1];
+}
+
 static void refresh_clock(struct tm* time, TimeUnits units_changed) {
   (void)units_changed;
   date_to_words(current_language, time->tm_mday, time->tm_mon, time->tm_wday, date_buffer,
@@ -29,6 +45,7 @@ static void refresh_clock(struct tm* time, TimeUnits units_changed) {
   text_layer_set_text(date_layer, date_buffer);
 
   fuzzy_time_to_words(current_language, time->tm_hour, time->tm_min, time_buffer, TIME_BUFFER_SIZE);
+  text_layer_set_font(time_layer, select_time_font(time_buffer));
   text_layer_set_text(time_layer, time_buffer);
 }
 
@@ -74,7 +91,9 @@ static void setup_decorations(void) {
   Layer* root = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(root);
 
-  time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PLEX_BOLD_28));
+  time_fonts[0] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PLEX_BOLD_28));
+  time_fonts[1] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PLEX_BOLD_24));
+  time_fonts[2] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PLEX_BOLD_20));
   date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PLEX_BOLD_18));
 
 #if PBL_ROUND
@@ -87,7 +106,8 @@ static void setup_decorations(void) {
   int date_y = bounds.size.h - 45;
 #endif
 
-  time_layer = add_text_layer(GRect(inset, time_y, bounds.size.w - (2 * inset), 80), time_font);
+  time_layer_width = bounds.size.w - (2 * inset);
+  time_layer = add_text_layer(GRect(inset, time_y, time_layer_width, 80), time_fonts[0]);
   date_layer = add_text_layer(GRect(inset, date_y, bounds.size.w - (2 * inset), 30), date_font);
   layer_set_hidden(text_layer_get_layer(date_layer), !show_date);
 }
@@ -105,7 +125,9 @@ static void deinit(void) {
   tick_timer_service_unsubscribe();
   text_layer_destroy(time_layer);
   text_layer_destroy(date_layer);
-  fonts_unload_custom_font(time_font);
+  for (int i = 0; i < TIME_FONT_COUNT; i++) {
+    fonts_unload_custom_font(time_fonts[i]);
+  }
   fonts_unload_custom_font(date_font);
   window_destroy(window);
 }
