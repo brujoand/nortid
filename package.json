@@ -21,7 +21,20 @@
       "diorite"
     ],
     "resources": {
-      "media": []
+      "media": [
+        {
+          "type": "font",
+          "name": "FONT_LATO_BOLD_30",
+          "file": "fonts/Lato-Bold.ttf",
+          "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_LATO_21",
+          "file": "fonts/Lato-Regular.ttf",
+          "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
+        }
+      ]
     },
     "messageKeys": {
       "Language": 0,
