@@ -21,6 +21,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc make
 
+      - name: Cache pre-commit environments
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
       - name: Install pre-commit
         run: pip install pre-commit
 
@@ -39,48 +45,11 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Cache Pebble SDK
+      - name: Cache pip packages
         uses: actions/cache@v4
-        id: sdk-cache
         with:
-          path: ~/.pebble-sdk
-          key: pebble-sdk-latest-v2
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libsdl1.2debian libfdt1 npm
-
-      - name: Install pebble-tool
-        run: |
-          pip install pebble-tool
-
-      - name: Install Pebble SDK
-        if: steps.sdk-cache.outputs.cache-hit != 'true'
-        run: |
-          pebble sdk install latest
-
-      - name: Build watchface
-        run: |
-          pebble build
-
-      - name: Upload .pbw artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: nortid-pbw
-          path: build/*.pbw
-
-  screenshots:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-pebble
 
       - name: Cache Pebble SDK
         uses: actions/cache@v4
@@ -95,19 +64,20 @@ jobs:
           sudo apt-get install -y libsdl1.2debian libfdt1 npm xvfb
 
       - name: Install pebble-tool
-        run: |
-          pip install pebble-tool
+        run: pip install pebble-tool
 
       - name: Install Pebble SDK
         if: steps.sdk-cache.outputs.cache-hit != 'true'
-        run: |
-          pebble sdk install latest
+        run: pebble sdk install latest
 
-      - name: Download .pbw artifact
-        uses: actions/download-artifact@v4
+      - name: Build watchface
+        run: pebble build
+
+      - name: Upload .pbw artifact
+        uses: actions/upload-artifact@v4
         with:
           name: nortid-pbw
-          path: build/
+          path: build/*.pbw
 
       - name: Start Xvfb
         run: |
