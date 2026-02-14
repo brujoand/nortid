@@ -74,8 +74,8 @@ static void setup_decorations(void) {
   Layer* root = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(root);
 
-  time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_LATO_BOLD_30));
-  date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_LATO_21));
+  time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PLEX_BOLD_28));
+  date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PLEX_BOLD_18));
 
 #if PBL_ROUND
   int inset = 22;

@@ -24,14 +24,14 @@
       "media": [
         {
           "type": "font",
-          "name": "FONT_LATO_BOLD_30",
-          "file": "fonts/Lato-Bold.ttf",
+          "name": "FONT_PLEX_BOLD_28",
+          "file": "fonts/IBMPlexSans-Bold.ttf",
           "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
         },
         {
           "type": "font",
-          "name": "FONT_LATO_21",
-          "file": "fonts/Lato-Regular.ttf",
+          "name": "FONT_PLEX_BOLD_18",
+          "file": "fonts/IBMPlexSans-Bold.ttf",
           "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
         }
       ]
