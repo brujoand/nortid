@@ -17,8 +17,9 @@ static size_t append_string(char* buffer, size_t remaining, const char* str) {
 
 void date_to_words(Language lang, int day, int month, int weekday, char* words, size_t length) {
   const DateStrings* strings = get_date_strings(lang);
-  size_t remaining = length;
   memset(words, 0, length);
+  if (!strings || !strings->days || !strings->months) return;
+  size_t remaining = length;
   char tmp[12];
   snprintf(tmp, sizeof(tmp), "%d", day);
 

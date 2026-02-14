@@ -12,6 +12,7 @@ static GFont date_font;
 #define TIME_FONT_COUNT 3
 static GFont time_fonts[TIME_FONT_COUNT];
 static int time_layer_width;
+static int layer_inset;
 
 static Language current_language = LANG_NO;
 
@@ -19,14 +20,20 @@ static Language current_language = LANG_NO;
 #define DATE_BUFFER_SIZE 20
 #define PERSIST_KEY_LANGUAGE 1
 #define PERSIST_KEY_SHOW_DATE 2
+#define LAYER_SPACING 8
+#define TIME_LAYER_HEIGHT 80
+#define DATE_LAYER_HEIGHT 30
 
 static bool show_date = true;
+static AppTimer* hide_date_timer = NULL;
 
 static char time_buffer[TIME_BUFFER_SIZE];
 static char date_buffer[DATE_BUFFER_SIZE];
 
+static bool date_visible(void) { return show_date || hide_date_timer != NULL; }
+
 static GFont select_time_font(const char* text) {
-  GSize max_size = GSize(time_layer_width, 80);
+  GSize max_size = GSize(time_layer_width, TIME_LAYER_HEIGHT);
   for (int i = 0; i < TIME_FONT_COUNT; i++) {
     GSize text_size = graphics_text_layout_get_content_size(
         text, time_fonts[i], GRect(0, 0, max_size.w, max_size.h), GTextOverflowModeWordWrap,
@@ -38,6 +45,28 @@ static GFont select_time_font(const char* text) {
   return time_fonts[TIME_FONT_COUNT - 1];
 }
 
+static void update_layout(GFont time_font) {
+  Layer* root = window_get_root_layer(window);
+  GRect bounds = layer_get_bounds(root);
+
+  GSize time_size = graphics_text_layout_get_content_size(
+      time_buffer, time_font, GRect(0, 0, time_layer_width, TIME_LAYER_HEIGHT),
+      GTextOverflowModeWordWrap, GTextAlignmentCenter);
+
+  int total_height = time_size.h;
+  if (date_visible()) {
+    total_height += LAYER_SPACING + DATE_LAYER_HEIGHT;
+  }
+
+  int time_y = (bounds.size.h - total_height) / 2;
+  int date_y = time_y + time_size.h + LAYER_SPACING;
+
+  layer_set_frame(text_layer_get_layer(time_layer),
+                  GRect(layer_inset, time_y, time_layer_width, TIME_LAYER_HEIGHT));
+  layer_set_frame(text_layer_get_layer(date_layer),
+                  GRect(layer_inset, date_y, time_layer_width, DATE_LAYER_HEIGHT));
+}
+
 static void refresh_clock(struct tm* time, TimeUnits units_changed) {
   (void)units_changed;
   date_to_words(current_language, time->tm_mday, time->tm_mon, time->tm_wday, date_buffer,
@@ -45,8 +74,11 @@ static void refresh_clock(struct tm* time, TimeUnits units_changed) {
   text_layer_set_text(date_layer, date_buffer);
 
   fuzzy_time_to_words(current_language, time->tm_hour, time->tm_min, time_buffer, TIME_BUFFER_SIZE);
-  text_layer_set_font(time_layer, select_time_font(time_buffer));
+  GFont time_font = select_time_font(time_buffer);
+  text_layer_set_font(time_layer, time_font);
   text_layer_set_text(time_layer, time_buffer);
+
+  update_layout(time_font);
 }
 
 static void force_refresh(void) {
@@ -65,12 +97,35 @@ static TextLayer* add_text_layer(GRect rect, GFont font) {
   return layer;
 }
 
+static void hide_date_callback(void* data) {
+  (void)data;
+  hide_date_timer = NULL;
+  layer_set_hidden(text_layer_get_layer(date_layer), true);
+  force_refresh();
+}
+
+static void tap_handler(AccelAxisType axis, int32_t direction) {
+  (void)axis;
+  (void)direction;
+  if (show_date) return;
+
+  if (hide_date_timer) {
+    app_timer_cancel(hide_date_timer);
+  }
+  layer_set_hidden(text_layer_get_layer(date_layer), false);
+  force_refresh();
+  hide_date_timer = app_timer_register(5000, hide_date_callback, NULL);
+}
+
 static void inbox_received_handler(DictionaryIterator* iter, void* context) {
   (void)context;
+  bool changed = false;
+
   Tuple* lang_tuple = dict_find(iter, MESSAGE_KEY_Language);
   if (lang_tuple) {
     current_language = (Language)lang_tuple->value->int32;
     persist_write_int(PERSIST_KEY_LANGUAGE, current_language);
+    changed = true;
   }
 
   Tuple* show_date_tuple = dict_find(iter, MESSAGE_KEY_ShowDate);
@@ -78,9 +133,14 @@ static void inbox_received_handler(DictionaryIterator* iter, void* context) {
     show_date = (bool)show_date_tuple->value->int32;
     persist_write_bool(PERSIST_KEY_SHOW_DATE, show_date);
     layer_set_hidden(text_layer_get_layer(date_layer), !show_date);
+    changed = true;
   }
 
   force_refresh();
+
+  if (changed) {
+    vibes_short_pulse();
+  }
 }
 
 static void setup_decorations(void) {
@@ -97,18 +157,21 @@ static void setup_decorations(void) {
   date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PLEX_BOLD_18));
 
 #if PBL_ROUND
-  int inset = 22;
-  int time_y = 40;
-  int date_y = bounds.size.h - 60;
+  layer_inset = 22;
 #else
-  int inset = 6;
-  int time_y = 25;
-  int date_y = bounds.size.h - 45;
+  layer_inset = 6;
 #endif
 
-  time_layer_width = bounds.size.w - (2 * inset);
-  time_layer = add_text_layer(GRect(inset, time_y, time_layer_width, 80), time_fonts[0]);
-  date_layer = add_text_layer(GRect(inset, date_y, bounds.size.w - (2 * inset), 30), date_font);
+  time_layer_width = bounds.size.w - (2 * layer_inset);
+  time_layer =
+      add_text_layer(GRect(layer_inset, 0, time_layer_width, TIME_LAYER_HEIGHT), time_fonts[0]);
+  date_layer =
+      add_text_layer(GRect(layer_inset, 0, time_layer_width, DATE_LAYER_HEIGHT), date_font);
+
+#if PBL_COLOR
+  text_layer_set_text_color(date_layer, GColorLightGray);
+#endif
+
   layer_set_hidden(text_layer_get_layer(date_layer), !show_date);
 }
 
@@ -123,6 +186,10 @@ static void load_settings(void) {
 
 static void deinit(void) {
   tick_timer_service_unsubscribe();
+  accel_tap_service_unsubscribe();
+  if (hide_date_timer) {
+    app_timer_cancel(hide_date_timer);
+  }
   text_layer_destroy(time_layer);
   text_layer_destroy(date_layer);
   for (int i = 0; i < TIME_FONT_COUNT; i++) {
@@ -142,6 +209,7 @@ int main(void) {
   force_refresh();
 
   tick_timer_service_subscribe(MINUTE_UNIT, refresh_clock);
+  accel_tap_service_subscribe(tap_handler);
 
   app_event_loop();
 
