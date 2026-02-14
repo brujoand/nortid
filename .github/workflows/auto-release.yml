@@ -8,6 +8,8 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.create.outputs.tag }}
     permissions:
       contents: write
     steps:
@@ -16,6 +18,7 @@ jobs:
           fetch-depth: 0
 
       - name: Determine version bump and create release
+        id: create
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -51,3 +54,10 @@ jobs:
 
           changelog=$(git log "${latest_tag}..HEAD" --pretty=format:"- %s" --no-merges)
           gh release create "$new_tag" --title "$new_tag" --notes "$changelog"
+          echo "tag=$new_tag" >> "$GITHUB_OUTPUT"
+
+  build-and-upload:
+    needs: release
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.release.outputs.tag }}

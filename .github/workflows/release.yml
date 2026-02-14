@@ -3,13 +3,24 @@ name: Release
 on:
   release:
     types: [published]
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
 
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve tag
+        id: tag
+        run: echo "name=${{ inputs.tag || github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.name }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -61,18 +72,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # Upload .pbw
-          gh release upload ${{ github.event.release.tag_name }} build/nortid.pbw --clobber
+          gh release upload ${{ steps.tag.outputs.name }} build/nortid.pbw --clobber
 
           # Upload screenshots
           for platform in aplite basalt diorite chalk; do
-            gh release upload ${{ github.event.release.tag_name }} screenshots/${platform}.png --clobber
+            gh release upload ${{ steps.tag.outputs.name }} screenshots/${platform}.png --clobber
           done
 
       - name: Update release notes
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          CURRENT_BODY=$(gh release view ${{ github.event.release.tag_name }} --json body -q .body)
+          CURRENT_BODY=$(gh release view ${{ steps.tag.outputs.name }} --json body -q .body)
 
           NEW_BODY="${CURRENT_BODY}
 
@@ -82,7 +93,7 @@ jobs:
 
           | aplite | basalt | diorite | chalk |
           |:------:|:------:|:-------:|:-----:|
-          | ![aplite](https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/aplite.png) | ![basalt](https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/basalt.png) | ![diorite](https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/diorite.png) | ![chalk](https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/chalk.png) |
+          | ![aplite](https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.name }}/aplite.png) | ![basalt](https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.name }}/basalt.png) | ![diorite](https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.name }}/diorite.png) | ![chalk](https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.name }}/chalk.png) |
           | Pebble Classic | Pebble Time | Pebble 2 | Time Round |
 
           ## Installation
@@ -92,4 +103,4 @@ jobs:
 
           To submit to Rebble appstore: [help.rebble.io/appstore-submission](https://help.rebble.io/appstore-submission/)"
 
-          gh release edit ${{ github.event.release.tag_name }} --notes "$NEW_BODY"
+          gh release edit ${{ steps.tag.outputs.name }} --notes "$NEW_BODY"
