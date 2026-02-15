@@ -27,6 +27,12 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-pebble
+
       - name: Cache Pebble SDK
         uses: actions/cache@v4
         id: sdk-cache
