@@ -7,7 +7,7 @@
   "dependencies": {},
   "pebble": {
     "uuid": "0c4019a6-51f8-499d-ab25-239b4b8cb7f3",
-    "sdkVersion": "3",
+    "sdkVersion": "4",
     "displayName": "Nortid",
     "enableMultiJS": false,
     "projectType": "native",
