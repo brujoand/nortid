@@ -1,0 +1,10 @@
+[extend]
+useDefault = true
+
+# The Firebase Web API key embedded in pebble-tool is a public client
+# identifier, not a secret. Firebase requires it to be shipped in client
+# code; security is enforced by Firebase Security Rules and per-user auth.
+# See https://firebase.google.com/docs/projects/api-keys
+[allowlist]
+description = "Firebase Web API key (public client identifier in pebble-tool)"
+regexes = ['''AIzaSyBZ9Cdvwwv9At2lPmc8TxyyEqSXGXejGvc''']

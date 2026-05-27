@@ -12,6 +12,8 @@ on:
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
+    env:
+      PEBBLE_FIREBASE_REFRESH_TOKEN: ${{ secrets.PEBBLE_FIREBASE_REFRESH_TOKEN }}
     steps:
       - name: Resolve tag
         id: tag
@@ -43,7 +45,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsdl1.2debian libfdt1 npm xvfb
+          sudo apt-get install -y libsdl1.2debian libfdt1 libsndio7.0 npm xvfb
 
       - name: Install pebble-tool
         run: pip install pebble-tool
@@ -84,6 +86,48 @@ jobs:
           for platform in aplite basalt diorite chalk; do
             gh release upload ${{ steps.tag.outputs.name }} screenshots/${platform}.png --clobber
           done
+
+      - name: Publish to repebble.com appstore
+        if: env.PEBBLE_FIREBASE_REFRESH_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          api_key="AIzaSyBZ9Cdvwwv9At2lPmc8TxyyEqSXGXejGvc"
+          id_token=$(curl -fsS -X POST \
+            "https://securetoken.googleapis.com/v1/token?key=${api_key}" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "grant_type=refresh_token&refresh_token=${PEBBLE_FIREBASE_REFRESH_TOKEN}" \
+            | jq -r .id_token)
+
+          if [ -z "$id_token" ] || [ "$id_token" = "null" ]; then
+            echo "Failed to refresh Firebase ID token" >&2
+            exit 1
+          fi
+
+          # pebble publish requires screenshot filenames prefixed with the platform name.
+          mkdir -p publish-screenshots
+          for platform in aplite basalt diorite chalk; do
+            cp "screenshots/${platform}.png" "publish-screenshots/${platform}_screenshot.png"
+          done
+
+          notes=$(gh release view "${{ steps.tag.outputs.name }}" --json body -q .body)
+          version="${{ steps.tag.outputs.name }}"
+          version="${version#v}"
+
+          PEBBLE_FIREBASE_ID_TOKEN="$id_token" pebble publish \
+            --non-interactive \
+            --no-gif-all-platforms \
+            --version "$version" \
+            --description "A Pebble watchface displaying time and date in Norwegian text." \
+            --release-notes "$notes" \
+            --screenshots \
+              publish-screenshots/aplite_screenshot.png \
+              publish-screenshots/basalt_screenshot.png \
+              publish-screenshots/diorite_screenshot.png \
+              publish-screenshots/chalk_screenshot.png \
+            --is-published
 
       - name: Update release notes
         env:
