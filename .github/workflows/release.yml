@@ -45,7 +45,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsdl1.2debian libfdt1 npm xvfb
+          sudo apt-get install -y libsdl1.2debian libfdt1 libsndio7.0 npm xvfb
 
       - name: Install pebble-tool
         run: pip install pebble-tool
