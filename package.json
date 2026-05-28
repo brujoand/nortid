@@ -52,12 +52,11 @@
     },
     "messageKeys": {
       "Language": 0,
-      "ShowDate": 1,
       "BackgroundColor": 2,
       "TimeColor": 3,
       "DateColor": 4,
-      "HeartRatePlacement": 5,
-      "HeartRateMode": 6
+      "TopSlot": 5,
+      "BottomSlot": 7
     },
     "capabilities": ["configurable", "health"]
   }

@@ -28,42 +28,28 @@
     "items": [
       {
         "type": "heading",
-        "defaultValue": "Display"
-      },
-      {
-        "type": "toggle",
-        "messageKey": "ShowDate",
-        "label": "Show Date",
-        "defaultValue": true
-      }
-    ]
-  },
-  {
-    "type": "section",
-    "items": [
-      {
-        "type": "heading",
-        "defaultValue": "Heart Rate"
+        "defaultValue": "Display Areas"
       },
       {
         "type": "select",
-        "messageKey": "HeartRatePlacement",
-        "defaultValue": "0",
-        "label": "Show Heart Rate",
+        "messageKey": "TopSlot",
+        "defaultValue": "1",
+        "label": "Top panel",
         "options": [
-          { "label": "Disabled", "value": "0" },
-          { "label": "Header (top)", "value": "1" },
-          { "label": "Footer (bottom)", "value": "2" }
+          { "label": "Nothing", "value": "0" },
+          { "label": "Heart Rate", "value": "1" },
+          { "label": "Date", "value": "2" }
         ]
       },
       {
         "type": "select",
-        "messageKey": "HeartRateMode",
-        "defaultValue": "0",
-        "label": "Update Mode",
+        "messageKey": "BottomSlot",
+        "defaultValue": "2",
+        "label": "Bottom panel",
         "options": [
-          { "label": "Always on", "value": "0" },
-          { "label": "Only when awake", "value": "1" }
+          { "label": "Nothing", "value": "0" },
+          { "label": "Heart Rate", "value": "1" },
+          { "label": "Date", "value": "2" }
         ]
       }
     ]
