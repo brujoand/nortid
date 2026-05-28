@@ -4,12 +4,14 @@
   "version": "2.0.0",
   "keywords": ["pebble-app"],
   "private": true,
-  "dependencies": {},
+  "dependencies": {
+    "pebble-clay": "^1.0.4"
+  },
   "pebble": {
     "uuid": "0c4019a6-51f8-499d-ab25-239b4b8cb7f3",
     "sdkVersion": "3",
     "displayName": "Nortid",
-    "enableMultiJS": false,
+    "enableMultiJS": true,
     "projectType": "native",
     "watchapp": {
       "watchface": true

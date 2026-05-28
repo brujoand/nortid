@@ -1,3 +1,5 @@
 tests/test_time2words
 tests/test_date2words
 build/
+node_modules/
+.lock-waf_linux_build
