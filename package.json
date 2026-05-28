@@ -55,8 +55,10 @@
       "ShowDate": 1,
       "BackgroundColor": 2,
       "TimeColor": 3,
-      "DateColor": 4
+      "DateColor": 4,
+      "HeartRatePlacement": 5,
+      "HeartRateMode": 6
     },
-    "capabilities": ["configurable"]
+    "capabilities": ["configurable", "health"]
   }
 }

@@ -43,6 +43,36 @@
     "items": [
       {
         "type": "heading",
+        "defaultValue": "Heart Rate"
+      },
+      {
+        "type": "select",
+        "messageKey": "HeartRatePlacement",
+        "defaultValue": "0",
+        "label": "Show Heart Rate",
+        "options": [
+          { "label": "Disabled", "value": "0" },
+          { "label": "Header (top)", "value": "1" },
+          { "label": "Footer (bottom)", "value": "2" }
+        ]
+      },
+      {
+        "type": "select",
+        "messageKey": "HeartRateMode",
+        "defaultValue": "0",
+        "label": "Update Mode",
+        "options": [
+          { "label": "Always on", "value": "0" },
+          { "label": "Only when awake", "value": "1" }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "section",
+    "items": [
+      {
+        "type": "heading",
         "defaultValue": "Colors"
       },
       {
