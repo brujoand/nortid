@@ -1,4 +1,5 @@
 #include <pebble.h>
+#include <stdlib.h>
 
 #include "date2words.h"
 #include "lang/lang.h"
@@ -252,9 +253,10 @@ static void inbox_received_handler(DictionaryIterator* iter, void* context) {
   (void)context;
   bool changed = false;
 
+  // Clay sends select and color items as cstrings (e.g. "1", "0xFFFFFF").
   Tuple* lang_tuple = dict_find(iter, MESSAGE_KEY_Language);
   if (lang_tuple) {
-    current_language = (Language)lang_tuple->value->int32;
+    current_language = (Language)atoi(lang_tuple->value->cstring);
     persist_write_int(PERSIST_KEY_LANGUAGE, current_language);
     changed = true;
   }
@@ -296,14 +298,14 @@ static void inbox_received_handler(DictionaryIterator* iter, void* context) {
 
   Tuple* hr_placement_tuple = dict_find(iter, MESSAGE_KEY_HeartRatePlacement);
   if (hr_placement_tuple) {
-    hr_placement = (ScreenArea)hr_placement_tuple->value->int32;
+    hr_placement = (ScreenArea)atoi(hr_placement_tuple->value->cstring);
     persist_write_int(PERSIST_KEY_HR_PLACEMENT, hr_placement);
     changed = true;
   }
 
   Tuple* hr_mode_tuple = dict_find(iter, MESSAGE_KEY_HeartRateMode);
   if (hr_mode_tuple) {
-    hr_mode = (HeartRateMode)hr_mode_tuple->value->int32;
+    hr_mode = (HeartRateMode)atoi(hr_mode_tuple->value->cstring);
     persist_write_int(PERSIST_KEY_HR_MODE, hr_mode);
     changed = true;
   }
