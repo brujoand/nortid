@@ -51,6 +51,12 @@
           { "label": "Heart Rate", "value": "1" },
           { "label": "Date", "value": "2" }
         ]
+      },
+      {
+        "type": "toggle",
+        "messageKey": "NumericTime",
+        "label": "Use numbers instead of words",
+        "defaultValue": false
       }
     ]
   },

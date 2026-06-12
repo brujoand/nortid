@@ -25,6 +25,7 @@ static Language current_language = LANG_NO;
 #define PERSIST_KEY_DATE_COLOR 5
 #define PERSIST_KEY_TOP_SLOT 8
 #define PERSIST_KEY_BOTTOM_SLOT 10
+#define PERSIST_KEY_NUMERIC 12
 #define TIME_LAYER_HEIGHT 80
 #define PANEL_HEIGHT 28
 #define HR_TEXT_SIZE 8
@@ -34,6 +35,8 @@ typedef enum { SLOT_NONE = 0, SLOT_HR = 1, SLOT_DATE = 2 } SlotContent;
 
 static SlotContent top_slot = SLOT_HR;
 static SlotContent bottom_slot = SLOT_DATE;
+
+static bool numeric_time = false;
 
 static GColor bg_color;
 static GColor time_color;
@@ -238,7 +241,8 @@ static void refresh_clock(struct tm* time, TimeUnits units_changed) {
   date_to_words(current_language, time->tm_mday, time->tm_mon, time->tm_wday, date_buffer,
                 DATE_BUFFER_SIZE);
 
-  fuzzy_time_to_words(current_language, time->tm_hour, time->tm_min, time_buffer, TIME_BUFFER_SIZE);
+  fuzzy_time_to_words(current_language, time->tm_hour, time->tm_min, numeric_time, time_buffer,
+                      TIME_BUFFER_SIZE);
   GFont time_font = select_time_font(time_buffer);
   text_layer_set_font(time_layer, time_font);
   text_layer_set_text(time_layer, time_buffer);
@@ -303,6 +307,13 @@ static void inbox_received_handler(DictionaryIterator* iter, void* context) {
   if (bottom_tuple) {
     bottom_slot = (SlotContent)atoi(bottom_tuple->value->cstring);
     persist_write_int(PERSIST_KEY_BOTTOM_SLOT, bottom_slot);
+    changed = true;
+  }
+
+  Tuple* numeric_tuple = dict_find(iter, MESSAGE_KEY_NumericTime);
+  if (numeric_tuple) {
+    numeric_time = numeric_tuple->value->int32 != 0;
+    persist_write_bool(PERSIST_KEY_NUMERIC, numeric_time);
     changed = true;
   }
 
@@ -371,6 +382,9 @@ static void load_settings(void) {
   }
   if (persist_exists(PERSIST_KEY_BOTTOM_SLOT)) {
     bottom_slot = (SlotContent)persist_read_int(PERSIST_KEY_BOTTOM_SLOT);
+  }
+  if (persist_exists(PERSIST_KEY_NUMERIC)) {
+    numeric_time = persist_read_bool(PERSIST_KEY_NUMERIC);
   }
 }
 
