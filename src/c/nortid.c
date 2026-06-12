@@ -10,7 +10,7 @@ static Window* window;
 static GFont date_font;
 static GFont hr_font;
 
-#define TIME_FONT_COUNT 3
+#define TIME_FONT_COUNT 2
 static GFont time_fonts[TIME_FONT_COUNT];
 static int time_layer_width;
 static int layer_inset;
@@ -333,10 +333,9 @@ static void setup_decorations(void) {
   Layer* root = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(root);
 
-  time_fonts[0] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PLEX_BOLD_28));
-  time_fonts[1] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PLEX_BOLD_24));
-  time_fonts[2] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PLEX_BOLD_20));
-  date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PLEX_BOLD_18));
+  time_fonts[0] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PIXEL_BOLD_32));
+  time_fonts[1] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PIXEL_BOLD_16));
+  date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PIXEL_BOLD_16));
   hr_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
 
 #if PBL_ROUND

@@ -26,26 +26,14 @@
       "media": [
         {
           "type": "font",
-          "name": "FONT_PLEX_BOLD_28",
-          "file": "fonts/IBMPlexSans-Bold.ttf",
+          "name": "FONT_PIXEL_BOLD_32",
+          "file": "fonts/PixelOperator-Bold.ttf",
           "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
         },
         {
           "type": "font",
-          "name": "FONT_PLEX_BOLD_24",
-          "file": "fonts/IBMPlexSans-Bold.ttf",
-          "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
-        },
-        {
-          "type": "font",
-          "name": "FONT_PLEX_BOLD_20",
-          "file": "fonts/IBMPlexSans-Bold.ttf",
-          "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
-        },
-        {
-          "type": "font",
-          "name": "FONT_PLEX_BOLD_18",
-          "file": "fonts/IBMPlexSans-Bold.ttf",
+          "name": "FONT_PIXEL_BOLD_16",
+          "file": "fonts/PixelOperator-Bold.ttf",
           "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
         }
       ]
