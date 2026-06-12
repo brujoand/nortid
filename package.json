@@ -56,7 +56,8 @@
       "TimeColor": 3,
       "DateColor": 4,
       "TopSlot": 5,
-      "BottomSlot": 7
+      "BottomSlot": 7,
+      "NumericTime": 6
     },
     "capabilities": ["configurable", "health"]
   }
