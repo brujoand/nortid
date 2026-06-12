@@ -40,8 +40,8 @@ static size_t append_number(char* buffer, size_t remaining, int num, bool numeri
   return written;
 }
 
-void fuzzy_time_to_words(Language lang, int hours, int minutes, bool numeric, char* words,
-                         size_t length) {
+void fuzzy_time_to_words(Language lang, int hours, int minutes, bool numeric, bool hour24,
+                         char* words, size_t length) {
   const TimeStrings* strings = get_time_strings(lang);
   int fuzzy_hours = hours;
   int fuzzy_minutes = minutes;
@@ -92,7 +92,13 @@ void fuzzy_time_to_words(Language lang, int hours, int minutes, bool numeric, ch
     fuzzy_hours = fuzzy_hours + 1;
   }
 
-  if (fuzzy_hours > 12) {
+  // 24-hour numbers only make sense in numeric mode; word output has no 24h
+  // form. In 24h mode the rolled-over hour wraps 24 -> 0, otherwise 12h folds.
+  if (numeric && hour24) {
+    if (fuzzy_hours > 23) {
+      fuzzy_hours = fuzzy_hours - 24;
+    }
+  } else if (fuzzy_hours > 12) {
     fuzzy_hours = fuzzy_hours - 12;
   } else if (fuzzy_hours == 0) {
     fuzzy_hours = 12;

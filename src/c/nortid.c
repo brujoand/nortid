@@ -10,7 +10,11 @@ static Window* window;
 static GFont date_font;
 static GFont hr_font;
 
-#define TIME_FONT_COUNT 2
+#define TIME_FONT_COUNT 8
+// Index of the first font usable in normal (wrapping) mode. Entries before it
+// are oversized and reserved for single-line mode, where one short line of
+// digits can grow past the normal ~32px cap. time_fonts[4] is the 32px entry.
+#define TIME_FONT_WRAP_START 4
 static GFont time_fonts[TIME_FONT_COUNT];
 static int time_layer_width;
 static int layer_inset;
@@ -27,6 +31,7 @@ static Language current_language = LANG_NO;
 #define PERSIST_KEY_BOTTOM_SLOT 10
 #define PERSIST_KEY_NUMERIC 12
 #define PERSIST_KEY_ONELINE 13
+#define PERSIST_KEY_HOUR24 14
 #define TIME_LAYER_HEIGHT 80
 #define PANEL_HEIGHT 28
 #define HR_TEXT_SIZE 8
@@ -39,6 +44,7 @@ static SlotContent bottom_slot = SLOT_DATE;
 
 static bool numeric_time = false;
 static bool one_line_time = false;
+static bool hour24_time = false;
 
 static GColor bg_color;
 static GColor time_color;
@@ -64,17 +70,32 @@ static bool bottom_occupied(void) { return bottom_slot != SLOT_NONE; }
 
 static bool single_line(void) { return numeric_time && one_line_time; }
 
+// Vertical room available to the time between the (optional) panels. Single-line
+// mode sizes against this so a short line of digits can grow to fill the band
+// instead of being pinned to the smaller wrapping-mode TIME_LAYER_HEIGHT.
+static int time_band_height(void) {
+  Layer* root = window_get_root_layer(window);
+  int h = layer_get_bounds(root).size.h;
+  int top = top_occupied() ? PANEL_HEIGHT : 0;
+  int bottom = bottom_occupied() ? PANEL_HEIGHT : 0;
+  return h - top - bottom;
+}
+
 static GFont select_time_font(const char* text) {
   // Single-line mode measures with a wide unbounded width so the layout never
-  // wraps; the largest font whose one-line width fits is chosen.
-  GTextOverflowMode overflow =
-      single_line() ? GTextOverflowModeTrailingEllipsis : GTextOverflowModeWordWrap;
-  int measure_w = single_line() ? 2000 : time_layer_width;
-  for (int i = 0; i < TIME_FONT_COUNT; i++) {
+  // wraps, and against the full vertical band so the largest font that fits on
+  // one line (by width and band height) is chosen.
+  int max_h = single_line() ? time_band_height() : TIME_LAYER_HEIGHT;
+  int start = single_line() ? 0 : TIME_FONT_WRAP_START;
+  for (int i = start; i < TIME_FONT_COUNT; i++) {
+    // Single-line: measure in an unbounded box (wide and tall) so the layout
+    // never wraps or clips, then compare the true content size against the real
+    // width/height limits. Wrapping mode measures inside the actual layer width.
+    GRect box =
+        single_line() ? GRect(0, 0, 2000, 2000) : GRect(0, 0, time_layer_width, TIME_LAYER_HEIGHT);
     GSize text_size = graphics_text_layout_get_content_size(
-        text, time_fonts[i], GRect(0, 0, measure_w, TIME_LAYER_HEIGHT), overflow,
-        GTextAlignmentCenter);
-    if (text_size.w <= time_layer_width && text_size.h <= TIME_LAYER_HEIGHT) {
+        text, time_fonts[i], box, GTextOverflowModeWordWrap, GTextAlignmentCenter);
+    if (text_size.w <= time_layer_width && text_size.h <= max_h) {
       return time_fonts[i];
     }
   }
@@ -166,15 +187,19 @@ static void update_layout(GFont time_font) {
   int center_bottom = bounds.size.h - (bottom_occupied() ? PANEL_HEIGHT : 0);
   int center_height = center_bottom - center_top;
 
+  // Single-line fonts can exceed TIME_LAYER_HEIGHT, so give the layer the full
+  // band height to avoid clipping the taller glyphs.
+  int layer_h = single_line() ? center_height : TIME_LAYER_HEIGHT;
+
   GSize time_size = graphics_text_layout_get_content_size(
-      time_buffer, time_font, GRect(0, 0, time_layer_width, TIME_LAYER_HEIGHT),
+      time_buffer, time_font, GRect(0, 0, time_layer_width, layer_h),
       single_line() ? GTextOverflowModeTrailingEllipsis : GTextOverflowModeWordWrap,
       GTextAlignmentCenter);
 
   int time_y = center_top + (center_height - time_size.h) / 2;
 
   layer_set_frame(text_layer_get_layer(time_layer),
-                  GRect(layer_inset, time_y, time_layer_width, TIME_LAYER_HEIGHT));
+                  GRect(layer_inset, time_y, time_layer_width, layer_h));
 
   if (top_panel) {
     layer_set_frame(top_panel, GRect(layer_inset, 0, time_layer_width, PANEL_HEIGHT));
@@ -250,8 +275,8 @@ static void refresh_clock(struct tm* time, TimeUnits units_changed) {
   date_to_words(current_language, time->tm_mday, time->tm_mon, time->tm_wday, date_buffer,
                 DATE_BUFFER_SIZE);
 
-  fuzzy_time_to_words(current_language, time->tm_hour, time->tm_min, numeric_time, time_buffer,
-                      TIME_BUFFER_SIZE);
+  fuzzy_time_to_words(current_language, time->tm_hour, time->tm_min, numeric_time, hour24_time,
+                      time_buffer, TIME_BUFFER_SIZE);
   GFont time_font = select_time_font(time_buffer);
   text_layer_set_overflow_mode(
       time_layer, single_line() ? GTextOverflowModeTrailingEllipsis : GTextOverflowModeWordWrap);
@@ -335,6 +360,13 @@ static void inbox_received_handler(DictionaryIterator* iter, void* context) {
     changed = true;
   }
 
+  Tuple* hour24_tuple = dict_find(iter, MESSAGE_KEY_Hour24Time);
+  if (hour24_tuple) {
+    hour24_time = hour24_tuple->value->int32 != 0;
+    persist_write_bool(PERSIST_KEY_HOUR24, hour24_time);
+    changed = true;
+  }
+
   apply_slots();
   force_refresh();
 
@@ -351,9 +383,19 @@ static void setup_decorations(void) {
   Layer* root = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(root);
 
-  time_fonts[0] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PIXEL_BOLD_32));
-  time_fonts[1] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PIXEL_BOLD_16));
-  date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_PIXEL_BOLD_16));
+  // Largest to smallest so select_time_font picks the first that fits on a line.
+  // Rajdhani is a vector font, crisp at any size, so the ladder is a smooth
+  // range. 56..36 are single-line only (see TIME_FONT_WRAP_START); normal
+  // wrapping mode starts at 32.
+  time_fonts[0] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_56));
+  time_fonts[1] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_48));
+  time_fonts[2] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_42));
+  time_fonts[3] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_36));
+  time_fonts[4] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_32));
+  time_fonts[5] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_28));
+  time_fonts[6] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_24));
+  time_fonts[7] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_20));
+  date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_DATE_18));
   hr_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
 
 #if PBL_ROUND
@@ -405,6 +447,9 @@ static void load_settings(void) {
   }
   if (persist_exists(PERSIST_KEY_ONELINE)) {
     one_line_time = persist_read_bool(PERSIST_KEY_ONELINE);
+  }
+  if (persist_exists(PERSIST_KEY_HOUR24)) {
+    hour24_time = persist_read_bool(PERSIST_KEY_HOUR24);
   }
 }
 

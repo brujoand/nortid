@@ -26,14 +26,56 @@
       "media": [
         {
           "type": "font",
-          "name": "FONT_PIXEL_BOLD_32",
-          "file": "fonts/PixelOperator-Bold.ttf",
+          "name": "FONT_TIME_56",
+          "file": "fonts/Rajdhani-Bold.ttf",
           "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
         },
         {
           "type": "font",
-          "name": "FONT_PIXEL_BOLD_16",
-          "file": "fonts/PixelOperator-Bold.ttf",
+          "name": "FONT_TIME_48",
+          "file": "fonts/Rajdhani-Bold.ttf",
+          "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_TIME_42",
+          "file": "fonts/Rajdhani-Bold.ttf",
+          "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_TIME_36",
+          "file": "fonts/Rajdhani-Bold.ttf",
+          "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_TIME_32",
+          "file": "fonts/Rajdhani-Bold.ttf",
+          "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_TIME_28",
+          "file": "fonts/Rajdhani-Bold.ttf",
+          "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_TIME_24",
+          "file": "fonts/Rajdhani-Bold.ttf",
+          "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_TIME_20",
+          "file": "fonts/Rajdhani-Bold.ttf",
+          "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_DATE_18",
+          "file": "fonts/Rajdhani-Bold.ttf",
           "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
         }
       ]
@@ -46,7 +88,8 @@
       "TopSlot": 5,
       "BottomSlot": 7,
       "NumericTime": 6,
-      "OneLineTime": 8
+      "OneLineTime": 8,
+      "Hour24Time": 9
     },
     "capabilities": ["configurable", "health"]
   }

@@ -6,13 +6,19 @@ void tearDown(void) {}
 
 static void assert_time(Language lang, int hours, int minutes, const char* expected) {
   char buffer[64];
-  fuzzy_time_to_words(lang, hours, minutes, false, buffer, sizeof(buffer));
+  fuzzy_time_to_words(lang, hours, minutes, false, false, buffer, sizeof(buffer));
   TEST_ASSERT_EQUAL_STRING(expected, buffer);
 }
 
 static void assert_time_numeric(Language lang, int hours, int minutes, const char* expected) {
   char buffer[64];
-  fuzzy_time_to_words(lang, hours, minutes, true, buffer, sizeof(buffer));
+  fuzzy_time_to_words(lang, hours, minutes, true, false, buffer, sizeof(buffer));
+  TEST_ASSERT_EQUAL_STRING(expected, buffer);
+}
+
+static void assert_time_numeric_24(Language lang, int hours, int minutes, const char* expected) {
+  char buffer[64];
+  fuzzy_time_to_words(lang, hours, minutes, true, true, buffer, sizeof(buffer));
   TEST_ASSERT_EQUAL_STRING(expected, buffer);
 }
 
@@ -93,6 +99,19 @@ void test_numeric(void) {
   assert_time_numeric(LANG_NO, 3, 50, "10 på 4");
   assert_time_numeric(LANG_NO, 12, 0, "12");
   assert_time_numeric(LANG_NO, 0, 0, "12");
+  assert_time_numeric(LANG_NO, 13, 0, "1");
+  assert_time_numeric(LANG_NO, 23, 0, "11");
+}
+
+void test_numeric_24h(void) {
+  assert_time_numeric_24(LANG_NO, 13, 0, "13");
+  assert_time_numeric_24(LANG_NO, 23, 0, "23");
+  assert_time_numeric_24(LANG_NO, 0, 0, "0");
+  assert_time_numeric_24(LANG_NO, 12, 0, "12");
+  assert_time_numeric_24(LANG_NO, 13, 5, "5 over 13");
+  assert_time_numeric_24(LANG_NO, 13, 30, "halv 14");
+  assert_time_numeric_24(LANG_NO, 23, 30, "halv 0");
+  assert_time_numeric_24(LANG_NO, 23, 45, "kvart på 0");
 }
 
 int main(void) {
@@ -111,5 +130,6 @@ int main(void) {
   RUN_TEST(test_danish_basics);
   RUN_TEST(test_swedish_basics);
   RUN_TEST(test_numeric);
+  RUN_TEST(test_numeric_24h);
   return UNITY_END();
 }

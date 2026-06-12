@@ -5,5 +5,5 @@
 
 #include "lang/lang.h"
 
-void fuzzy_time_to_words(Language lang, int hours, int minutes, bool numeric, char* words,
-                         size_t length);
+void fuzzy_time_to_words(Language lang, int hours, int minutes, bool numeric, bool hour24,
+                         char* words, size_t length);

@@ -64,6 +64,13 @@
         "label": "Keep time on one line (numbers only)",
         "description": "Scales the font to fit the time on a single line. Only applies when numbers are enabled.",
         "defaultValue": false
+      },
+      {
+        "type": "toggle",
+        "messageKey": "Hour24Time",
+        "label": "Use 24-hour numbers",
+        "description": "Shows hours as 0-23 instead of 1-12. Only applies when numbers are enabled.",
+        "defaultValue": false
       }
     ]
   },
