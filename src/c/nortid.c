@@ -26,6 +26,7 @@ static Language current_language = LANG_NO;
 #define PERSIST_KEY_TOP_SLOT 8
 #define PERSIST_KEY_BOTTOM_SLOT 10
 #define PERSIST_KEY_NUMERIC 12
+#define PERSIST_KEY_ONELINE 13
 #define TIME_LAYER_HEIGHT 80
 #define PANEL_HEIGHT 28
 #define HR_TEXT_SIZE 8
@@ -37,6 +38,7 @@ static SlotContent top_slot = SLOT_HR;
 static SlotContent bottom_slot = SLOT_DATE;
 
 static bool numeric_time = false;
+static bool one_line_time = false;
 
 static GColor bg_color;
 static GColor time_color;
@@ -60,13 +62,19 @@ static bool top_occupied(void) { return top_slot != SLOT_NONE; }
 
 static bool bottom_occupied(void) { return bottom_slot != SLOT_NONE; }
 
+static bool single_line(void) { return numeric_time && one_line_time; }
+
 static GFont select_time_font(const char* text) {
-  GSize max_size = GSize(time_layer_width, TIME_LAYER_HEIGHT);
+  // Single-line mode measures with a wide unbounded width so the layout never
+  // wraps; the largest font whose one-line width fits is chosen.
+  GTextOverflowMode overflow =
+      single_line() ? GTextOverflowModeTrailingEllipsis : GTextOverflowModeWordWrap;
+  int measure_w = single_line() ? 2000 : time_layer_width;
   for (int i = 0; i < TIME_FONT_COUNT; i++) {
     GSize text_size = graphics_text_layout_get_content_size(
-        text, time_fonts[i], GRect(0, 0, max_size.w, max_size.h), GTextOverflowModeWordWrap,
+        text, time_fonts[i], GRect(0, 0, measure_w, TIME_LAYER_HEIGHT), overflow,
         GTextAlignmentCenter);
-    if (text_size.w <= max_size.w && text_size.h <= max_size.h) {
+    if (text_size.w <= time_layer_width && text_size.h <= TIME_LAYER_HEIGHT) {
       return time_fonts[i];
     }
   }
@@ -160,7 +168,8 @@ static void update_layout(GFont time_font) {
 
   GSize time_size = graphics_text_layout_get_content_size(
       time_buffer, time_font, GRect(0, 0, time_layer_width, TIME_LAYER_HEIGHT),
-      GTextOverflowModeWordWrap, GTextAlignmentCenter);
+      single_line() ? GTextOverflowModeTrailingEllipsis : GTextOverflowModeWordWrap,
+      GTextAlignmentCenter);
 
   int time_y = center_top + (center_height - time_size.h) / 2;
 
@@ -244,6 +253,8 @@ static void refresh_clock(struct tm* time, TimeUnits units_changed) {
   fuzzy_time_to_words(current_language, time->tm_hour, time->tm_min, numeric_time, time_buffer,
                       TIME_BUFFER_SIZE);
   GFont time_font = select_time_font(time_buffer);
+  text_layer_set_overflow_mode(
+      time_layer, single_line() ? GTextOverflowModeTrailingEllipsis : GTextOverflowModeWordWrap);
   text_layer_set_font(time_layer, time_font);
   text_layer_set_text(time_layer, time_buffer);
 
@@ -317,6 +328,13 @@ static void inbox_received_handler(DictionaryIterator* iter, void* context) {
     changed = true;
   }
 
+  Tuple* oneline_tuple = dict_find(iter, MESSAGE_KEY_OneLineTime);
+  if (oneline_tuple) {
+    one_line_time = oneline_tuple->value->int32 != 0;
+    persist_write_bool(PERSIST_KEY_ONELINE, one_line_time);
+    changed = true;
+  }
+
   apply_slots();
   force_refresh();
 
@@ -384,6 +402,9 @@ static void load_settings(void) {
   }
   if (persist_exists(PERSIST_KEY_NUMERIC)) {
     numeric_time = persist_read_bool(PERSIST_KEY_NUMERIC);
+  }
+  if (persist_exists(PERSIST_KEY_ONELINE)) {
+    one_line_time = persist_read_bool(PERSIST_KEY_ONELINE);
   }
 }
 

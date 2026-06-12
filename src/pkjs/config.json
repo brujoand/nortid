@@ -57,6 +57,13 @@
         "messageKey": "NumericTime",
         "label": "Use numbers instead of words",
         "defaultValue": false
+      },
+      {
+        "type": "toggle",
+        "messageKey": "OneLineTime",
+        "label": "Keep time on one line (numbers only)",
+        "description": "Scales the font to fit the time on a single line. Only applies when numbers are enabled.",
+        "defaultValue": false
       }
     ]
   },
