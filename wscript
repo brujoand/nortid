@@ -3,6 +3,7 @@
 #
 # Feel free to customize this to your needs.
 #
+import os
 import os.path
 
 top = '.'
@@ -22,10 +23,17 @@ def build(ctx):
 
     binaries = []
 
+    # Screenshot/demo builds set NORTID_SCREENSHOT_DEMO=1 so the watchface shows
+    # representative health values instead of "--" off-watch. Never set for the
+    # released .pbw.
+    demo = os.environ.get('NORTID_SCREENSHOT_DEMO') == '1'
+
     cached_env = ctx.env
     for platform in ctx.env.TARGET_PLATFORMS:
         ctx.env = ctx.all_envs[platform]
         ctx.set_group(ctx.env.PLATFORM_NAME)
+        if demo:
+            ctx.env.append_value('DEFINES', 'SCREENSHOT_DEMO=1')
         app_elf = '{}/pebble-app.elf'.format(ctx.env.BUILD_DIR)
         ctx.pbl_build(source=ctx.path.ant_glob('src/c/**/*.c'), target=app_elf, bin_type='app')
         binaries.append({'platform': platform, 'app_elf': app_elf})

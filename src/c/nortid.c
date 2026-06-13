@@ -427,6 +427,25 @@ static void refresh_metrics(void) {
     snprintf(sleep_buffer, METRIC_TEXT_SIZE, "%d:%02d", sleep_value_min / 60, sleep_value_min % 60);
   }
 #endif
+
+#ifdef SCREENSHOT_DEMO
+  // Representative readings so appstore screenshots show real-looking metrics
+  // instead of "--" in the emulator. Compiled in only for the screenshot build.
+  if (slot_used(SLOT_HR)) {
+    hr_value = 72;
+    snprintf(hr_buffer, METRIC_TEXT_SIZE, "%d", hr_value);
+  }
+  if (slot_used(SLOT_STEPS)) {
+    steps_value = 8420;
+    snprintf(steps_buffer, METRIC_TEXT_SIZE, "%d.%dk", steps_value / 1000,
+             (steps_value % 1000) / 100);
+  }
+  if (slot_used(SLOT_SLEEP)) {
+    sleep_value_min = 450;  // 7:30
+    snprintf(sleep_buffer, METRIC_TEXT_SIZE, "%d:%02d", sleep_value_min / 60, sleep_value_min % 60);
+  }
+#endif
+
   if (top_panel) layer_mark_dirty(top_panel);
 }
 
