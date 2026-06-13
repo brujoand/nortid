@@ -89,7 +89,7 @@ jobs:
         run: |
           mkdir -p screenshots
 
-          for platform in aplite basalt diorite chalk; do
+          for platform in aplite basalt diorite chalk emery; do
             echo "Capturing screenshot for $platform..."
             pebble install --emulator $platform demo-build/*.pbw
             sleep 5
@@ -113,7 +113,7 @@ jobs:
           gh release upload ${{ steps.tag.outputs.name }} build/nortid.pbw --clobber
 
           # Upload screenshots
-          for platform in aplite basalt diorite chalk; do
+          for platform in aplite basalt diorite chalk emery; do
             gh release upload ${{ steps.tag.outputs.name }} screenshots/${platform}.png --clobber
           done
 
@@ -138,7 +138,7 @@ jobs:
 
           # pebble publish requires screenshot filenames prefixed with the platform name.
           mkdir -p publish-screenshots
-          for platform in aplite basalt diorite chalk; do
+          for platform in aplite basalt diorite chalk emery; do
             cp "screenshots/${platform}.png" "publish-screenshots/${platform}_screenshot.png"
           done
 
@@ -157,6 +157,7 @@ jobs:
               publish-screenshots/basalt_screenshot.png \
               publish-screenshots/diorite_screenshot.png \
               publish-screenshots/chalk_screenshot.png \
+              publish-screenshots/emery_screenshot.png \
             --is-published
 
       - name: Update release notes
@@ -171,10 +172,10 @@ jobs:
 
           ## Screenshots
 
-          | aplite | basalt | diorite | chalk |
-          |:------:|:------:|:-------:|:-----:|
-          | ![aplite](https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.name }}/aplite.png) | ![basalt](https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.name }}/basalt.png) | ![diorite](https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.name }}/diorite.png) | ![chalk](https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.name }}/chalk.png) |
-          | Pebble Classic | Pebble Time | Pebble 2 | Time Round |
+          | aplite | basalt | diorite | chalk | emery |
+          |:------:|:------:|:-------:|:-----:|:-----:|
+          | ![aplite](https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.name }}/aplite.png) | ![basalt](https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.name }}/basalt.png) | ![diorite](https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.name }}/diorite.png) | ![chalk](https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.name }}/chalk.png) | ![emery](https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.name }}/emery.png) |
+          | Pebble Classic | Pebble Time | Pebble 2 | Time Round | Time 2 |
 
           ## Installation
 

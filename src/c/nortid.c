@@ -64,8 +64,8 @@ typedef enum {
   SLOT_SLEEP = 3,
 } SlotContent;
 
-// Top row, left to right. Default: steps | (empty) | heart rate.
-static SlotContent top_slots[TOP_SLOT_COUNT] = {SLOT_STEPS, SLOT_NONE, SLOT_HR};
+// Top row, left to right. Default: sleep | heart rate | steps.
+static SlotContent top_slots[TOP_SLOT_COUNT] = {SLOT_SLEEP, SLOT_HR, SLOT_STEPS};
 static bool show_date = true;
 
 // Raw current readings, used to format the displayed value buffers.

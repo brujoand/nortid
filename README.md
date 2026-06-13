@@ -3,9 +3,9 @@ nortid
 
 A Pebble watchface displaying time and date in Norwegian text.
 
-| Aplite | Basalt | Chalk | Diorite |
-|:------:|:------:|:-----:|:-------:|
-| ![aplite](https://github.com/brujoand/nortid/releases/latest/download/aplite.png) | ![basalt](https://github.com/brujoand/nortid/releases/latest/download/basalt.png) | ![chalk](https://github.com/brujoand/nortid/releases/latest/download/chalk.png) | ![diorite](https://github.com/brujoand/nortid/releases/latest/download/diorite.png) |
+| Aplite | Basalt | Diorite | Chalk | Emery |
+|:------:|:------:|:-------:|:-----:|:-----:|
+| ![aplite](https://github.com/brujoand/nortid/releases/latest/download/aplite.png) | ![basalt](https://github.com/brujoand/nortid/releases/latest/download/basalt.png) | ![diorite](https://github.com/brujoand/nortid/releases/latest/download/diorite.png) | ![chalk](https://github.com/brujoand/nortid/releases/latest/download/chalk.png) | ![emery](https://github.com/brujoand/nortid/releases/latest/download/emery.png) |
 
 ## Install
 

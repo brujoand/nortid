@@ -33,7 +33,7 @@
       {
         "type": "select",
         "messageKey": "TopLeft",
-        "defaultValue": "2",
+        "defaultValue": "3",
         "label": "Top left",
         "options": [
           { "label": "Nothing", "value": "0" },
@@ -45,7 +45,7 @@
       {
         "type": "select",
         "messageKey": "TopCenter",
-        "defaultValue": "0",
+        "defaultValue": "1",
         "label": "Top center",
         "options": [
           { "label": "Nothing", "value": "0" },
@@ -57,7 +57,7 @@
       {
         "type": "select",
         "messageKey": "TopRight",
-        "defaultValue": "1",
+        "defaultValue": "2",
         "label": "Top right",
         "options": [
           { "label": "Nothing", "value": "0" },
