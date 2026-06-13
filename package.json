@@ -96,8 +96,6 @@
       "TopCenter": 7,
       "TopRight": 10,
       "ShowDate": 11,
-      "TargetSteps": 12,
-      "TargetSleep": 14,
       "NumericTime": 6,
       "OneLineTime": 8,
       "Hour24Time": 9

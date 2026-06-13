@@ -37,8 +37,6 @@ static Language current_language = LANG_NO;
 #define PERSIST_KEY_NUMERIC 12
 #define PERSIST_KEY_ONELINE 13
 #define PERSIST_KEY_HOUR24 14
-#define PERSIST_KEY_TARGET_STEPS 15
-#define PERSIST_KEY_TARGET_SLEEP 17
 #define TIME_LAYER_HEIGHT 80
 // Emery (Pebble Time 2, 200x228) has room for a taller top strip per the design
 // research; other platforms keep the compact panels.
@@ -70,12 +68,7 @@ typedef enum {
 static SlotContent top_slots[TOP_SLOT_COUNT] = {SLOT_STEPS, SLOT_NONE, SLOT_HR};
 static bool show_date = true;
 
-// Daily goals: steps/sleep values turn green once met. Sleep stored in minutes.
-static int target_steps = 10000;
-static int target_sleep_min = 360;  // 6h
-
-// Raw current readings, kept alongside the formatted buffers so color logic can
-// compare against goals/zones.
+// Raw current readings, used to format the displayed value buffers.
 static int steps_value = 0;
 static int hr_value = 0;
 static int sleep_value_min = 0;
@@ -594,23 +587,6 @@ static void inbox_received_handler(DictionaryIterator* iter, void* context) {
     changed = true;
   }
 
-  Tuple* target_steps_tuple = dict_find(iter, MESSAGE_KEY_TargetSteps);
-  if (target_steps_tuple) {
-    target_steps = atoi(target_steps_tuple->value->cstring);
-    if (target_steps < 1) target_steps = 1;
-    persist_write_int(PERSIST_KEY_TARGET_STEPS, target_steps);
-    changed = true;
-  }
-
-  Tuple* target_sleep_tuple = dict_find(iter, MESSAGE_KEY_TargetSleep);
-  if (target_sleep_tuple) {
-    // Sent as hours; stored as minutes.
-    target_sleep_min = atoi(target_sleep_tuple->value->cstring) * 60;
-    if (target_sleep_min < 1) target_sleep_min = 1;
-    persist_write_int(PERSIST_KEY_TARGET_SLEEP, target_sleep_min);
-    changed = true;
-  }
-
   Tuple* numeric_tuple = dict_find(iter, MESSAGE_KEY_NumericTime);
   if (numeric_tuple) {
     numeric_time = numeric_tuple->value->int32 != 0;
@@ -728,12 +704,6 @@ static void load_settings(void) {
   }
   if (persist_exists(PERSIST_KEY_SHOW_DATE)) {
     show_date = persist_read_bool(PERSIST_KEY_SHOW_DATE);
-  }
-  if (persist_exists(PERSIST_KEY_TARGET_STEPS)) {
-    target_steps = persist_read_int(PERSIST_KEY_TARGET_STEPS);
-  }
-  if (persist_exists(PERSIST_KEY_TARGET_SLEEP)) {
-    target_sleep_min = persist_read_int(PERSIST_KEY_TARGET_SLEEP);
   }
   if (persist_exists(PERSIST_KEY_NUMERIC)) {
     numeric_time = persist_read_bool(PERSIST_KEY_NUMERIC);
