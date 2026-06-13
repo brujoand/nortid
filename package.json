@@ -1,7 +1,7 @@
 {
   "name": "nortid",
   "author": "Tindheim IT",
-  "version": "6.5.0",
+  "version": "6.5",
   "keywords": ["pebble-app"],
   "private": true,
   "dependencies": {
