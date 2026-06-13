@@ -33,6 +33,12 @@ def _sync_version_from_git():
     version = tag.lstrip('v')
     if not version:
         return
+    # Pebble app versions are MAJOR.MINOR only (the .pbw header has no patch
+    # byte; the SDK rejects a non-zero patch). Collapse any tag to MAJOR.MINOR
+    # so a semver tag like v6.5.2 still produces a buildable 6.5.
+    parts = version.split('.')
+    if len(parts) >= 2:
+        version = parts[0] + '.' + parts[1]
     path = os.path.join(here, 'package.json')
     with open(path) as f:
         text = f.read()

@@ -9,7 +9,6 @@ static TextLayer* time_layer;
 static Window* window;
 static GFont date_font;
 static GFont hr_font;
-static GFont label_font;
 
 #define TIME_FONT_COUNT 9
 // The whole ladder is usable in every mode. The worded fitter chooses a line
@@ -267,18 +266,69 @@ static const char* metric_text(SlotContent metric) {
   }
 }
 
-// Short tag identifying the metric, shown above the value inside the tile border
-// in place of a drawn icon.
-static const char* metric_label(SlotContent metric) {
+// Icon row height reserved above the value inside each tile.
+#define TILE_ICON_H 12
+
+// Heart: two top lobes (filled circles) over a downward triangle, centered on
+// (cx, cy) where cy is the vertical midpoint of the icon band.
+static void draw_heart_icon(GContext* ctx, int cx, int cy, GColor color) {
+  graphics_context_set_fill_color(ctx, color);
+  int r = 3;
+  int lobe_y = cy - 1;
+  graphics_fill_circle(ctx, GPoint(cx - r + 1, lobe_y), r);
+  graphics_fill_circle(ctx, GPoint(cx + r - 1, lobe_y), r);
+  // Tip below the lobes.
+  for (int dy = 0; dy <= r + 1; dy++) {
+    int half = (r + 1) - dy;
+    graphics_draw_line(ctx, GPoint(cx - half, lobe_y + dy + 1), GPoint(cx + half, lobe_y + dy + 1));
+  }
+}
+
+// Sleep: three "Z" glyphs of increasing size, drawn as zig-zag strokes rising
+// to the right.
+static void draw_z(GContext* ctx, int x, int y, int s) {
+  graphics_draw_line(ctx, GPoint(x, y), GPoint(x + s, y));          // top bar
+  graphics_draw_line(ctx, GPoint(x + s, y), GPoint(x, y + s));      // diagonal
+  graphics_draw_line(ctx, GPoint(x, y + s), GPoint(x + s, y + s));  // bottom bar
+}
+
+static void draw_sleep_icon(GContext* ctx, int cx, int cy, GColor color) {
+  graphics_context_set_stroke_color(ctx, color);
+  // Three Z's, small to large, baselines stepping up to the right.
+  draw_z(ctx, cx - 8, cy + 1, 3);
+  draw_z(ctx, cx - 3, cy - 1, 4);
+  draw_z(ctx, cx + 3, cy - 4, 5);
+}
+
+// Steps: two pairs of dots staggered like footprints walking forward.
+static void draw_steps_icon(GContext* ctx, int cx, int cy, GColor color) {
+  graphics_context_set_fill_color(ctx, color);
+  int r = 2;
+  // Two footprints both oriented the same way (big toe dot up, small heel dot
+  // below); left foot sits lower, right foot steps higher, reading as a stride.
+  graphics_fill_circle(ctx, GPoint(cx - 5, cy), r);
+  graphics_fill_circle(ctx, GPoint(cx - 5, cy + 3), r - 1);
+  graphics_fill_circle(ctx, GPoint(cx + 4, cy - 2), r);
+  graphics_fill_circle(ctx, GPoint(cx + 4, cy + 1), r - 1);
+}
+
+// Draws the metric's icon centered in a band of TILE_ICON_H height whose top is
+// at `top`, spanning the chip width.
+static void draw_metric_icon(GContext* ctx, GRect chip, int top, SlotContent metric, GColor color) {
+  int cx = chip.origin.x + chip.size.w / 2;
+  int cy = top + TILE_ICON_H / 2;
   switch (metric) {
     case SLOT_HR:
-      return "HR";
+      draw_heart_icon(ctx, cx, cy, color);
+      break;
     case SLOT_STEPS:
-      return "STEG";
+      draw_steps_icon(ctx, cx, cy, color);
+      break;
     case SLOT_SLEEP:
-      return "SØVN";
+      draw_sleep_icon(ctx, cx, cy, color);
+      break;
     default:
-      return "";
+      break;
   }
 }
 
@@ -294,32 +344,27 @@ static const char* metric_label(SlotContent metric) {
 // edge is its own fill, not a separate stroke.
 static void draw_metric_in_cell(GContext* ctx, GRect cell, SlotContent metric, GColor fill,
                                 GColor text) {
-  const char* label = metric_label(metric);
   const char* value = metric_text(metric);
 
   GRect chip = grect_inset(cell, GEdgeInsets(TILE_BORDER_INSET));
   graphics_context_set_fill_color(ctx, fill);
   graphics_fill_rect(ctx, chip, TILE_BORDER_RADIUS, GCornersAll);
 
-  GSize label_size = graphics_text_layout_get_content_size(
-      label, label_font, chip, GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter);
   GSize value_size = graphics_text_layout_get_content_size(
       value, hr_font, chip, GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter);
 
-  // Both system fonts report tall line boxes; trim so the stacked pair sits
+  // System font reports a tall line box; trim so the icon+value pair sits
   // optically centered in the chip rather than low.
-  int label_h = label_size.h - 4;
   int value_h = value_size.h - 6;
-  int group_h = label_h + TILE_LABEL_GAP + value_h;
+  int group_h = TILE_ICON_H + TILE_LABEL_GAP + value_h;
   int top = chip.origin.y + (chip.size.h - group_h) / 2;
 
+  draw_metric_icon(ctx, chip, top, metric, text);
+
   graphics_context_set_text_color(ctx, text);
-  graphics_draw_text(ctx, label, label_font,
-                     GRect(chip.origin.x, top - 2, chip.size.w, label_size.h),
-                     GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
   graphics_draw_text(
       ctx, value, hr_font,
-      GRect(chip.origin.x, top + label_h + TILE_LABEL_GAP - 4, chip.size.w, value_size.h),
+      GRect(chip.origin.x, top + TILE_ICON_H + TILE_LABEL_GAP - 4, chip.size.w, value_size.h),
       GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
 }
 
@@ -669,8 +714,6 @@ static void setup_decorations(void) {
 #else
   hr_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
 #endif
-  // Small tag above each metric value inside its border.
-  label_font = fonts_get_system_font(FONT_KEY_GOTHIC_14);
 
 #if PBL_ROUND
   layer_inset = 22;
