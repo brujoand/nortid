@@ -10,12 +10,14 @@ static Window* window;
 static GFont date_font;
 static GFont hr_font;
 
-#define TIME_FONT_COUNT 8
-// Index of the first font usable in normal (wrapping) mode. Entries before it
-// are oversized and reserved for single-line mode, where one short line of
-// digits can grow past the normal ~32px cap. time_fonts[4] is the 32px entry.
-#define TIME_FONT_WRAP_START 4
+#define TIME_FONT_COUNT 9
+// The whole ladder is usable in every mode. The worded fitter chooses a line
+// count first (1 line if the phrase fits full width, else a balanced 2 lines,
+// else 3) and then takes the largest font that fills that layout.
 static GFont time_fonts[TIME_FONT_COUNT];
+// Minimum side margin: the longest line is allowed to grow until it is within
+// this many pixels of the layer width.
+#define TIME_SIDE_MARGIN 2
 static int time_layer_width;
 static int layer_inset;
 
@@ -136,23 +138,111 @@ static int time_band_height(void) {
   return h - top - bottom;
 }
 
-static GFont select_time_font(const char* text) {
-  // Single-line mode measures with a wide unbounded width so the layout never
-  // wraps, and against the full vertical band so the largest font that fits on
-  // one line (by width and band height) is chosen.
-  int max_h = single_line() ? time_band_height() : TIME_LAYER_HEIGHT;
-  int start = single_line() ? 0 : TIME_FONT_WRAP_START;
-  for (int i = start; i < TIME_FONT_COUNT; i++) {
-    // Single-line: measure in an unbounded box (wide and tall) so the layout
-    // never wraps or clips, then compare the true content size against the real
-    // width/height limits. Wrapping mode measures inside the actual layer width.
-    GRect box =
-        single_line() ? GRect(0, 0, 2000, 2000) : GRect(0, 0, time_layer_width, TIME_LAYER_HEIGHT);
-    GSize text_size = graphics_text_layout_get_content_size(
-        text, time_fonts[i], box, GTextOverflowModeWordWrap, GTextAlignmentCenter);
-    if (text_size.w <= time_layer_width && text_size.h <= max_h) {
-      return time_fonts[i];
+// Measures one candidate string at a given font in a width-unbounded box so the
+// layout breaks only on the explicit '\n' we inserted, never on width. The
+// returned width is then the true widest line and the height the true stack
+// height; a layout fits when both are within the usable box. Measuring in a
+// max_w-wide box instead would let an over-wide line silently wrap and report a
+// deceptively small width.
+static bool layout_fits(const char* text, GFont font, int max_w, int max_h) {
+  GSize size = graphics_text_layout_get_content_size(
+      text, font, GRect(0, 0, 2000, 2000), GTextOverflowModeWordWrap, GTextAlignmentCenter);
+  return size.w <= max_w && size.h <= max_h;
+}
+
+// Largest font in the ladder for which `text` (as broken) fits, or -1 if none.
+// Searches largest-first and returns the first that fits.
+static int largest_fitting_font(const char* text, int max_w, int max_h) {
+  for (int i = 0; i < TIME_FONT_COUNT; i++) {
+    if (layout_fits(text, time_fonts[i], max_w, max_h)) return i;
+  }
+  return -1;
+}
+
+// Writes `src` into `dst` with the space before word index `break_at` replaced
+// by a newline, splitting the phrase into two lines. `break_at` is 1-based in
+// word count (1 => break before the 2nd word).
+static void split_at_word(const char* src, int break_at, char* dst, size_t dst_len) {
+  size_t di = 0;
+  int word = 0;
+  for (size_t si = 0; src[si] != '\0' && di + 1 < dst_len; si++) {
+    if (src[si] == ' ') {
+      word++;
+      dst[di++] = (word == break_at) ? '\n' : ' ';
+    } else {
+      dst[di++] = src[si];
     }
+  }
+  dst[di] = '\0';
+}
+
+// Picks the balanced two-line split: the break minimizing the wider line's
+// width, measured at the largest font. That split leaves the most room to grow.
+// Returns the 1-based break word index, or 0 if the phrase has < 2 words.
+static int balanced_break(const char* text) {
+  int spaces = 0;
+  for (const char* p = text; *p; p++) {
+    if (*p == ' ') spaces++;
+  }
+  if (spaces < 1) return 0;
+
+  GFont ref = time_fonts[0];
+  int best_break = 1;
+  int best_max_line = 100000;
+  char candidate[TIME_BUFFER_SIZE];
+  for (int b = 1; b <= spaces; b++) {
+    split_at_word(text, b, candidate, sizeof(candidate));
+    // Width-unbounded measure so size.w is the true widest of the two lines
+    // (the '\n' is the only break); we want the split that minimizes it.
+    GSize size = graphics_text_layout_get_content_size(
+        candidate, ref, GRect(0, 0, 2000, 2000), GTextOverflowModeWordWrap, GTextAlignmentLeft);
+    if (size.w < best_max_line) {
+      best_max_line = size.w;
+      best_break = b;
+    }
+  }
+  return best_break;
+}
+
+// Worded / numeric-wrapping fit. Decides line count first, then maximizes font:
+//   1. one line if the whole phrase fits full width,
+//   2. else a balanced two-line split,
+//   3. else fall back to natural word-wrap (3+ lines) at the smallest font.
+// Writes the chosen (possibly newline-broken) string into out, returns the font.
+static GFont fit_worded_time(const char* text, char* out, size_t out_len) {
+  int max_w = time_layer_width - TIME_SIDE_MARGIN;
+  int max_h = time_band_height();
+
+  // 1 line.
+  strncpy(out, text, out_len - 1);
+  out[out_len - 1] = '\0';
+  int idx = largest_fitting_font(out, max_w, max_h);
+  if (idx >= 0) return time_fonts[idx];
+
+  // 2 lines, balanced.
+  int brk = balanced_break(text);
+  if (brk > 0) {
+    split_at_word(text, brk, out, out_len);
+    idx = largest_fitting_font(out, max_w, max_h);
+    if (idx >= 0) return time_fonts[idx];
+  }
+
+  // Fall back to natural wrapping of the original phrase at the smallest font.
+  strncpy(out, text, out_len - 1);
+  out[out_len - 1] = '\0';
+  return time_fonts[TIME_FONT_COUNT - 1];
+}
+
+// Single-line numeric fit: measure in an unbounded box so the layout never
+// wraps, take the largest font whose digits fit the width and vertical band.
+static GFont fit_single_line(const char* text) {
+  int max_w = time_layer_width - TIME_SIDE_MARGIN;
+  int max_h = time_band_height();
+  for (int i = 0; i < TIME_FONT_COUNT; i++) {
+    GSize size =
+        graphics_text_layout_get_content_size(text, time_fonts[i], GRect(0, 0, 2000, 2000),
+                                              GTextOverflowModeWordWrap, GTextAlignmentCenter);
+    if (size.w <= max_w && size.h <= max_h) return time_fonts[i];
   }
   return time_fonts[TIME_FONT_COUNT - 1];
 }
@@ -316,9 +406,9 @@ static void update_layout(GFont time_font) {
   int center_bottom = bounds.size.h - (bottom_occupied() ? BOTTOM_PANEL_HEIGHT : 0);
   int center_height = center_bottom - center_top;
 
-  // Single-line fonts can exceed TIME_LAYER_HEIGHT, so give the layer the full
-  // band height to avoid clipping the taller glyphs.
-  int layer_h = single_line() ? center_height : TIME_LAYER_HEIGHT;
+  // Both modes can now pick fonts that fill the whole band, so give the layer
+  // the full center height and center the measured text within it.
+  int layer_h = center_height;
 
   GSize time_size = graphics_text_layout_get_content_size(
       time_buffer, time_font, GRect(0, 0, time_layer_width, layer_h),
@@ -435,7 +525,19 @@ static void refresh_clock(struct tm* time, TimeUnits units_changed) {
 
   fuzzy_time_to_words(current_language, time->tm_hour, time->tm_min, numeric_time, hour24_time,
                       time_buffer, TIME_BUFFER_SIZE);
-  GFont time_font = select_time_font(time_buffer);
+
+  GFont time_font;
+  if (single_line()) {
+    time_font = fit_single_line(time_buffer);
+  } else {
+    // The worded fitter may insert a newline to force a balanced two-line
+    // layout; render the broken string it produces.
+    char broken[TIME_BUFFER_SIZE];
+    time_font = fit_worded_time(time_buffer, broken, sizeof(broken));
+    strncpy(time_buffer, broken, TIME_BUFFER_SIZE - 1);
+    time_buffer[TIME_BUFFER_SIZE - 1] = '\0';
+  }
+
   text_layer_set_overflow_mode(
       time_layer, single_line() ? GTextOverflowModeTrailingEllipsis : GTextOverflowModeWordWrap);
   text_layer_set_font(time_layer, time_font);
@@ -572,18 +674,25 @@ static void setup_decorations(void) {
   Layer* root = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(root);
 
-  // Largest to smallest so select_time_font picks the first that fits on a line.
-  // Rajdhani is a vector font, crisp at any size, so the ladder is a smooth
-  // range. 56..36 are single-line only (see TIME_FONT_WRAP_START); normal
-  // wrapping mode starts at 32.
-  time_fonts[0] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_56));
-  time_fonts[1] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_48));
-  time_fonts[2] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_42));
-  time_fonts[3] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_36));
-  time_fonts[4] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_32));
-  time_fonts[5] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_28));
-  time_fonts[6] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_24));
-  time_fonts[7] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_20));
+  // Largest to smallest so the fitter picks the first that fits. Rajdhani is a
+  // vector font, crisp at any size, so the ladder is a smooth range. The whole
+  // ladder is available to every mode; the worded fitter chooses line count and
+  // then the largest font that fills it.
+  //
+  // FONT_TIME_64 omits 'w'/'W' from its characterRegex: at 64px Rajdhani's 'W'
+  // exceeds the SDK's 256px glyph-dimension cap on the non-Emery platforms. No
+  // Norwegian/Danish/Swedish time or date word contains w/W, so this is safe;
+  // adding a language that uses them means dropping the 64px tier or subsetting
+  // differently.
+  time_fonts[0] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_64));
+  time_fonts[1] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_56));
+  time_fonts[2] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_48));
+  time_fonts[3] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_42));
+  time_fonts[4] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_36));
+  time_fonts[5] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_32));
+  time_fonts[6] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_28));
+  time_fonts[7] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_24));
+  time_fonts[8] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_20));
   date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_DATE_18));
   // Emery's taller top strip fits a larger value font; other platforms stay 18.
 #if defined(PBL_PLATFORM_EMERY)

@@ -27,6 +27,12 @@
       "media": [
         {
           "type": "font",
+          "name": "FONT_TIME_64",
+          "file": "fonts/Rajdhani-Bold.ttf",
+          "characterRegex": "[a-vx-zA-VX-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
+        },
+        {
+          "type": "font",
           "name": "FONT_TIME_56",
           "file": "fonts/Rajdhani-Bold.ttf",
           "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
