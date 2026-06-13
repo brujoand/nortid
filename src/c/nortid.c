@@ -46,7 +46,9 @@ static Language current_language = LANG_NO;
 #define BOTTOM_PANEL_HEIGHT 32
 #else
 #define TOP_PANEL_HEIGHT 28
-#define BOTTOM_PANEL_HEIGHT 28
+// 32px (up from 28) so the 24px date font clears its descenders without
+// clipping; costs the time band ~4px of height, which the fitter absorbs.
+#define BOTTOM_PANEL_HEIGHT 32
 #endif
 #define METRIC_TEXT_SIZE 8
 #define HR_SAMPLE_PERIOD_S 600
@@ -693,7 +695,7 @@ static void setup_decorations(void) {
   time_fonts[6] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_28));
   time_fonts[7] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_24));
   time_fonts[8] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_20));
-  date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_DATE_18));
+  date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_DATE_24));
   // Emery's taller top strip fits a larger value font; other platforms stay 18.
 #if defined(PBL_PLATFORM_EMERY)
   hr_font = fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);

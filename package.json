@@ -81,7 +81,7 @@
         },
         {
           "type": "font",
-          "name": "FONT_DATE_18",
+          "name": "FONT_DATE_24",
           "file": "fonts/Rajdhani-Bold.ttf",
           "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
         }
