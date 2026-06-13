@@ -7,6 +7,13 @@ on:
     branches: [master]
   workflow_dispatch:
 
+# Force the bundled JS in checkout/setup-python/cache (still shipping Node 20)
+# onto the runner's Node 24, ahead of GitHub making it the default on
+# 2026-06-16. checkout@v4/setup-python@v5/cache@v4 are already the latest
+# majors, so there is no version bump to make.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest

@@ -5,6 +5,11 @@ on:
     branches: [master]
     tags-ignore: ['**']
 
+# Force the bundled JS in checkout (still shipping Node 20) onto the runner's
+# Node 24, ahead of GitHub making it the default on 2026-06-16.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   release:
     runs-on: ubuntu-latest
