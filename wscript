@@ -3,11 +3,48 @@
 #
 # Feel free to customize this to your needs.
 #
+import json
 import os
 import os.path
+import re
+import subprocess
 
 top = '.'
 out = 'build'
+
+
+def _sync_version_from_git():
+    """Stamp package.json's version from the latest git tag so the built .pbw
+    (and on-watch versionLabel) always reflect the real release version
+    instead of a stale hand-edited value. No-op when git/tags are unavailable.
+    Rewrites only the version string so the rest of the file (formatting,
+    compact arrays) is left untouched."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    try:
+        tag = subprocess.check_output(
+            ['git', 'describe', '--tags', '--abbrev=0'],
+            stderr=subprocess.DEVNULL,
+            cwd=here,
+        ).decode().strip()
+    except (subprocess.CalledProcessError, OSError):
+        return
+    version = tag.lstrip('v')
+    if not version:
+        return
+    path = os.path.join(here, 'package.json')
+    with open(path) as f:
+        text = f.read()
+    if json.loads(text).get('version') == version:
+        return
+    new_text, count = re.subn(
+        r'("version"\s*:\s*")[^"]*(")',
+        lambda m: m.group(1) + version + m.group(2),
+        text,
+        count=1,
+    )
+    if count == 1:
+        with open(path, 'w') as f:
+            f.write(new_text)
 
 
 def options(ctx):
@@ -15,10 +52,12 @@ def options(ctx):
 
 
 def configure(ctx):
+    _sync_version_from_git()
     ctx.load('pebble_sdk')
 
 
 def build(ctx):
+    _sync_version_from_git()
     ctx.load('pebble_sdk')
 
     binaries = []
