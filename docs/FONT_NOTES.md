@@ -9,7 +9,12 @@ they map to this watchface's current setup.
   size in the resource name's numeric suffix. To have N sizes you register the
   same `.ttf` N times. There is no "draw this TTF at 47px" call at runtime.
 - **~48px recommended max, ~60px practical max** for a custom font resource before
-  you must switch to per-digit bitmaps. Our largest is 56 (`FONT_TIME_56`).
+  you must switch to per-digit bitmaps. The hard wall is the SDK glyph-dimension
+  cap: **256px on aplite/basalt/chalk/diorite, 320px on emery**. At 64px
+  Rajdhani's `W` is 257px wide and breaks the build on the small platforms, and at
+  72px its `W` is 322px and breaks even emery. Our largest is 64 (`FONT_TIME_64`),
+  which builds only because that tier's `characterRegex` omits `w`/`W` (no
+  Norwegian/Danish/Swedish word uses them); `M`/`m` are under the cap at 64px.
 - **Measurement API** is the tool for fitting:
   `graphics_text_layout_get_content_size(text, font, box, overflow, align)`
   returns the rendered size, so you can measure before drawing.
@@ -19,17 +24,29 @@ they map to this watchface's current setup.
 
 ## What this face already does (and the research endorses)
 
-- **Bundle discrete sizes + measure-then-choose.** `select_time_font()` in
-  `src/c/nortid.c` loops the size ladder largest -> smallest and returns the first
-  whose *measured* size fits the box. This is the "choose_font()" pattern the
-  report says you largely have to write yourself. We measure the real layout, so
-  fitting is accurate — we do not guess from character count.
+- **Bundle discrete sizes + measure-then-choose.** The size ladder (64 -> 20) is
+  loaded largest-first and the fitter returns the first that fits. We measure the
+  real layout, so fitting is accurate — we do not guess from character count.
+- **Line-count-aware worded fit.** `fit_worded_time()` decides line count *before*
+  size: it tries the whole phrase on one line (largest font whose true,
+  width-unbounded measure fits width-2px and the vertical band); failing that it
+  picks the **balanced two-line split** (`balanced_break()` chooses the word break
+  that minimizes the wider line, leaving the most room to grow) and takes the
+  largest font that fills it; failing that it falls back to natural word-wrap at
+  the smallest font. The chosen split is baked into the buffer as a `\n`, so the
+  text engine renders exactly the layout we measured. The whole ladder is
+  available to every mode — there is no longer a reserved oversized band.
+- **Measure width-unbounded.** `layout_fits()` / `balanced_break()` measure in a
+  2000px-wide box so the layout breaks only on our explicit `\n`, never on width.
+  A `max_w`-wide measuring box would let an over-wide line silently wrap and
+  report a deceptively small width, fooling the fitter into accepting it.
 - **Recompute vertical origin each tick** from the measured height
-  (`update_layout()`), so the time stays centered as the chosen size changes.
-- **Word-wrap for worded time, single-line for numeric.** `single_line()` gates
-  `GTextOverflowModeTrailingEllipsis` vs `GTextOverflowModeWordWrap`, and the size
-  ladder reserves the oversized entries (>32px) for single-line numeric mode
-  (`TIME_FONT_WRAP_START`).
+  (`update_layout()`), so the time stays centered as the chosen size changes. Both
+  worded and single-line modes fit against the real band between panels
+  (`time_band_height()`), not a fixed layer height.
+- **6px side inset on rectangular** (`layer_inset`), plus a 2px in-layer
+  `TIME_SIDE_MARGIN`, so the longest line grows to ~8px of the edge. Round keeps a
+  22px inset for the circular bezel.
 - **Emery uses a larger value font** for the top metric tiles (Gothic 24 vs 18),
   matching the report's "Emery uses larger fonts by default" guidance.
 
@@ -48,13 +65,15 @@ they map to this watchface's current setup.
     only Rajdhani (equal advance for `0-9 :`, letters untouched, via a fontTools
     build step), or switch numeric mode to a built-in tabular font
     (`LECO_60_NUMBERS` on Emery — free, tabular, numerals-only).
-- **`characterRegex` digit subsetting** of the large sizes. Can't apply: the same
-  size ladder renders worded time, so the resources need letters too. Subsetting
-  would only help if numeric used a separate font.
-- **Trimming the 8-size ladder.** The report calls 2-3 sizes the sweet spot and 5+
+- **`characterRegex` digit subsetting** of the large sizes. Mostly can't apply:
+  the same ladder renders worded time, so the resources need letters too. The one
+  exception in use is the 64px tier, which drops only `w`/`W` — not to save flash
+  but because those two glyphs exceed the SDK's 256px cap at that size and no
+  supported language uses them.
+- **Trimming the size ladder.** The report calls 2-3 sizes the sweet spot and 5+
   an anti-pattern, but that is about flash cost, which is a non-issue on Emery's
-  256 KB. We keep 8 sizes for smoother auto-fit, especially for multi-line worded
-  time. (Same Rajdhani TTF reused 8x.)
+  256 KB. We keep 9 sizes (64 -> 20) for smoother auto-fit, especially for the
+  two-line worded layout. (Same Rajdhani TTF reused 9x.)
 
 ## If a distinct look or bigger-than-60px is ever wanted
 
