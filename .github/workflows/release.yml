@@ -8,6 +8,12 @@ on:
       tag:
         required: true
         type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to (re)build and upload (e.g. v6.6.0)
+        required: true
+        type: string
 
 jobs:
   build-and-upload:
@@ -103,16 +109,37 @@ jobs:
 
       - name: Generate screenshots
         run: |
+          set -uo pipefail
           mkdir -p screenshots
+
+          # Capture one platform: kill any stale emulator, install, screenshot.
+          # The emulator startup/teardown is timing-sensitive on CI (a fresh
+          # `pebble install` can hit "Connection refused" if the previous qemu
+          # hasn't released its port), so each platform gets a few attempts with
+          # a clean emulator and a longer backoff before failing the release.
+          capture() {
+            local platform="$1"
+            pebble kill >/dev/null 2>&1 || true
+            sleep 3
+            pebble install --emulator "$platform" demo-build/*.pbw || return 1
+            sleep 6
+            pebble screenshot --emulator "$platform" --no-open "screenshots/$platform.png" || return 1
+          }
 
           for platform in aplite basalt diorite chalk emery; do
             echo "Capturing screenshot for $platform..."
-            pebble install --emulator $platform demo-build/*.pbw
-            sleep 5
-            pebble screenshot --emulator $platform --no-open screenshots/$platform.png
-            pebble kill || true
-            sleep 2
+            ok=0
+            for attempt in 1 2 3; do
+              if capture "$platform"; then ok=1; break; fi
+              echo "Attempt $attempt for $platform failed; retrying after backoff..." >&2
+              sleep $((attempt * 5))
+            done
+            if [ "$ok" -ne 1 ]; then
+              echo "Failed to capture screenshot for $platform after 3 attempts" >&2
+              exit 1
+            fi
           done
+          pebble kill >/dev/null 2>&1 || true
 
       - name: Build release watchface
         run: |
