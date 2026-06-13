@@ -54,13 +54,36 @@ jobs:
         if: steps.sdk-cache.outputs.cache-hit != 'true'
         run: pebble sdk install latest
 
-      - name: Build watchface
-        run: pebble build
+      - name: Sync package.json version to release tag
+        run: |
+          version="${{ steps.tag.outputs.name }}"
+          version="${version#v}"
+          # Embed the released version in the .pbw so the on-watch / appstore
+          # version matches the GitHub release tag.
+          python3 - "$version" <<'PY'
+          import json, sys
+          version = sys.argv[1]
+          with open("package.json") as f:
+              pkg = json.load(f)
+          pkg["version"] = version
+          with open("package.json", "w") as f:
+              json.dump(pkg, f, indent=2)
+              f.write("\n")
+          PY
+          echo "package.json version set to $version"
 
       - name: Start Xvfb
         run: |
           Xvfb :99 -screen 0 400x400x24 &
           echo "DISPLAY=:99" >> $GITHUB_ENV
+
+      - name: Build demo bundle for screenshots
+        run: |
+          # Separate build with representative health values so screenshots show
+          # real-looking metrics instead of "--". Not uploaded or published.
+          NORTID_SCREENSHOT_DEMO=1 pebble build
+          mkdir -p demo-build
+          cp build/*.pbw demo-build/
 
       - name: Generate screenshots
         run: |
@@ -68,12 +91,19 @@ jobs:
 
           for platform in aplite basalt diorite chalk; do
             echo "Capturing screenshot for $platform..."
-            pebble install --emulator $platform build/*.pbw
+            pebble install --emulator $platform demo-build/*.pbw
             sleep 5
             pebble screenshot --emulator $platform --no-open screenshots/$platform.png
             pebble kill || true
             sleep 2
           done
+
+      - name: Build release watchface
+        run: |
+          # Clean rebuild without the demo flag so the uploaded/published .pbw
+          # uses real health data.
+          pebble clean
+          pebble build
 
       - name: Upload release assets
         env:
