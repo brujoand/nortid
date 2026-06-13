@@ -269,47 +269,58 @@ static const char* metric_text(SlotContent metric) {
 // Icon row height reserved above the value inside each tile.
 #define TILE_ICON_H 12
 
-// Heart: two top lobes (filled circles) over a downward triangle, centered on
-// (cx, cy) where cy is the vertical midpoint of the icon band.
+// Heart: two top lobes with a visible cleft between them, tapering to a tip.
+// Lobe centers are spread far enough apart that the gap reads at 12px, and the
+// body is a triangle whose top row bridges the lobes so the silhouette closes.
 static void draw_heart_icon(GContext* ctx, int cx, int cy, GColor color) {
   graphics_context_set_fill_color(ctx, color);
   int r = 3;
-  int lobe_y = cy - 1;
+  int lobe_y = cy - 2;
+  // Spread the lobes so the cleft between them is one pixel wide, not merged.
   graphics_fill_circle(ctx, GPoint(cx - r + 1, lobe_y), r);
   graphics_fill_circle(ctx, GPoint(cx + r - 1, lobe_y), r);
-  // Tip below the lobes.
-  for (int dy = 0; dy <= r + 1; dy++) {
-    int half = (r + 1) - dy;
-    graphics_draw_line(ctx, GPoint(cx - half, lobe_y + dy + 1), GPoint(cx + half, lobe_y + dy + 1));
+  // Body: a tapering triangle from the lobes' full width down to the tip. Start
+  // at the lobe centers' row so it fuses with the circles into one shape.
+  int top_half = r + 1;
+  for (int dy = 0; dy <= top_half + 1; dy++) {
+    int half = top_half - dy;
+    if (half < 0) half = 0;
+    int y = lobe_y + dy + 1;
+    graphics_draw_line(ctx, GPoint(cx - half, y), GPoint(cx + half, y));
   }
 }
 
-// Sleep: three "Z" glyphs of increasing size, drawn as zig-zag strokes rising
-// to the right.
+// Sleep: two bold "Z" glyphs (small over large) drawn with doubled strokes so
+// they stay legible at 12px. Each Z is a top bar, a diagonal, and a bottom bar.
 static void draw_z(GContext* ctx, int x, int y, int s) {
-  graphics_draw_line(ctx, GPoint(x, y), GPoint(x + s, y));          // top bar
-  graphics_draw_line(ctx, GPoint(x + s, y), GPoint(x, y + s));      // diagonal
-  graphics_draw_line(ctx, GPoint(x, y + s), GPoint(x + s, y + s));  // bottom bar
+  for (int o = 0; o <= 1; o++) {  // thicken by drawing each stroke twice
+    graphics_draw_line(ctx, GPoint(x, y + o), GPoint(x + s, y + o));          // top
+    graphics_draw_line(ctx, GPoint(x + s - o, y), GPoint(x - o, y + s));      // diagonal
+    graphics_draw_line(ctx, GPoint(x, y + s - o), GPoint(x + s, y + s - o));  // bottom
+  }
 }
 
 static void draw_sleep_icon(GContext* ctx, int cx, int cy, GColor color) {
   graphics_context_set_stroke_color(ctx, color);
-  // Three Z's, small to large, baselines stepping up to the right.
-  draw_z(ctx, cx - 8, cy + 1, 3);
-  draw_z(ctx, cx - 3, cy - 1, 4);
-  draw_z(ctx, cx + 3, cy - 4, 5);
+  // Large Z down-left, small Z up-right: the classic rising "zzz" reading.
+  draw_z(ctx, cx - 7, cy - 1, 6);
+  draw_z(ctx, cx + 1, cy - 6, 5);
 }
 
-// Steps: two pairs of dots staggered like footprints walking forward.
+// Steps: two footprints. Each print is a sole (a short vertical stack of
+// widening then narrowing dots) plus a toe dot offset toward the lead, so it
+// reads as a foot rather than scattered points. Left foot trails, right leads.
+static void draw_foot(GContext* ctx, int fx, int fy) {
+  graphics_fill_circle(ctx, GPoint(fx, fy), 2);          // sole (heel/arch)
+  graphics_fill_circle(ctx, GPoint(fx, fy - 3), 2);      // sole (ball)
+  graphics_fill_circle(ctx, GPoint(fx + 1, fy - 5), 1);  // toe
+}
+
 static void draw_steps_icon(GContext* ctx, int cx, int cy, GColor color) {
   graphics_context_set_fill_color(ctx, color);
-  int r = 2;
-  // Two footprints both oriented the same way (big toe dot up, small heel dot
-  // below); left foot sits lower, right foot steps higher, reading as a stride.
-  graphics_fill_circle(ctx, GPoint(cx - 5, cy), r);
-  graphics_fill_circle(ctx, GPoint(cx - 5, cy + 3), r - 1);
-  graphics_fill_circle(ctx, GPoint(cx + 4, cy - 2), r);
-  graphics_fill_circle(ctx, GPoint(cx + 4, cy + 1), r - 1);
+  // Left foot trails (lower), right foot leads (higher): reads as a stride.
+  draw_foot(ctx, cx - 4, cy + 3);
+  draw_foot(ctx, cx + 4, cy + 1);
 }
 
 // Draws the metric's icon centered in a band of TILE_ICON_H height whose top is
@@ -386,15 +397,33 @@ static void top_panel_update_proc(Layer* layer, GContext* ctx) {
   }
 }
 
-// Date text, horizontally and vertically centered in bounds.
+// Width of the hairline drawn above the date, as a fraction of panel width.
+#define DATE_RULE_WIDTH_NUM 1
+#define DATE_RULE_WIDTH_DEN 3
+
+// Date text, horizontally and vertically centered in bounds, with a short
+// hairline rule centered above it to anchor the otherwise-floating date.
 static void bottom_panel_update_proc(Layer* layer, GContext* ctx) {
   GRect bounds = layer_get_bounds(layer);
   GSize text_size = graphics_text_layout_get_content_size(
       date_buffer, date_font, bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter);
 
+  int text_y = (bounds.size.h - text_size.h) / 2 - 2;
+
+  // Hairline near the panel's top edge, spanning a centered fraction of the
+  // width. Anchored to a fixed offset from the top rather than to text_y: the
+  // 24px font's line box runs tall, so text_y lands near (and sometimes above)
+  // y=0, which would clip a rule placed relative to it. date_color is the muted
+  // accent already used for the date, so the rule reads as the same element on
+  // every platform.
+  int rule_w = bounds.size.w * DATE_RULE_WIDTH_NUM / DATE_RULE_WIDTH_DEN;
+  int rule_x0 = (bounds.size.w - rule_w) / 2;
+  int rule_y = 2;
+  graphics_context_set_stroke_color(ctx, date_color);
+  graphics_draw_line(ctx, GPoint(rule_x0, rule_y), GPoint(rule_x0 + rule_w, rule_y));
+
   graphics_context_set_text_color(ctx, date_color);
-  graphics_draw_text(ctx, date_buffer, date_font,
-                     GRect(0, (bounds.size.h - text_size.h) / 2 - 2, bounds.size.w, text_size.h),
+  graphics_draw_text(ctx, date_buffer, date_font, GRect(0, text_y, bounds.size.w, text_size.h),
                      GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
 }
 
