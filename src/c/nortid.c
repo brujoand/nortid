@@ -9,6 +9,7 @@ static TextLayer* time_layer;
 static Window* window;
 static GFont date_font;
 static GFont hr_font;
+static GFont label_font;
 
 #define TIME_FONT_COUNT 9
 // The whole ladder is usable in every mode. The worded fitter chooses a line
@@ -41,24 +42,20 @@ static Language current_language = LANG_NO;
 #define TIME_LAYER_HEIGHT 80
 // Emery (Pebble Time 2, 200x228) has room for a taller top strip per the design
 // research; other platforms keep the compact panels.
+//
+// The top panel stacks a label above the value inside a solid inverse tile, so
+// it is taller than the bottom (date-only) panel. The extra height comes out of
+// the time band, which the worded fitter absorbs by breaking to two lines.
 #if defined(PBL_PLATFORM_EMERY)
-#define TOP_PANEL_HEIGHT 40
+#define TOP_PANEL_HEIGHT 44
 #define BOTTOM_PANEL_HEIGHT 32
 #else
-#define TOP_PANEL_HEIGHT 28
-// 32px (up from 28) so the 24px date font clears its descenders without
-// clipping; costs the time band ~4px of height, which the fitter absorbs.
+#define TOP_PANEL_HEIGHT 40
 #define BOTTOM_PANEL_HEIGHT 32
 #endif
 #define METRIC_TEXT_SIZE 8
 #define HR_SAMPLE_PERIOD_S 600
 #define TOP_SLOT_COUNT 3
-
-// Heart-rate zone thresholds (bpm). Below the first is "rest". The face colors
-// the HR value by zone; see hr_zone_color().
-#define HR_ZONE_FATBURN 100
-#define HR_ZONE_CARDIO 140
-#define HR_ZONE_PEAK 170
 
 // Metric shown in a top slot. HR keeps value 1 so existing installs that
 // persisted a heart-rate slot keep it after the upgrade.
@@ -206,30 +203,45 @@ static int balanced_break(const char* text) {
   return best_break;
 }
 
-// Worded / numeric-wrapping fit. Decides line count first, then maximizes font:
-//   1. one line if the whole phrase fits full width,
-//   2. else a balanced two-line split,
-//   3. else fall back to natural word-wrap (3+ lines) at the smallest font.
-// Writes the chosen (possibly newline-broken) string into out, returns the font.
+// Worded / numeric-wrapping fit. Maximizes the font size by comparing layouts:
+// it measures the largest font that fits the phrase on one line and the largest
+// that fits a balanced two-line split, then keeps whichever yields the bigger
+// font (the ladder is largest-first, so a smaller index is a bigger font). This
+// breaks a phrase onto two lines whenever that lets it grow, instead of keeping
+// it on one small line. Ties prefer one line. Falls back to natural word-wrap at
+// the smallest font when nothing fits. Writes the chosen string into out.
 static GFont fit_worded_time(const char* text, char* out, size_t out_len) {
   int max_w = time_layer_width - TIME_SIDE_MARGIN;
   int max_h = time_band_height();
 
-  // 1 line.
-  strncpy(out, text, out_len - 1);
-  out[out_len - 1] = '\0';
-  int idx = largest_fitting_font(out, max_w, max_h);
-  if (idx >= 0) return time_fonts[idx];
+  char one_line[TIME_BUFFER_SIZE];
+  strncpy(one_line, text, sizeof(one_line) - 1);
+  one_line[sizeof(one_line) - 1] = '\0';
+  int one_idx = largest_fitting_font(one_line, max_w, max_h);
 
-  // 2 lines, balanced.
+  char two_line[TIME_BUFFER_SIZE];
+  int two_idx = -1;
   int brk = balanced_break(text);
   if (brk > 0) {
-    split_at_word(text, brk, out, out_len);
-    idx = largest_fitting_font(out, max_w, max_h);
-    if (idx >= 0) return time_fonts[idx];
+    split_at_word(text, brk, two_line, sizeof(two_line));
+    two_idx = largest_fitting_font(two_line, max_w, max_h);
   }
 
-  // Fall back to natural wrapping of the original phrase at the smallest font.
+  // Pick the layout whose largest fitting font is biggest (smallest index).
+  // The two-line split must be strictly bigger to be chosen, so equal-size
+  // results keep the single line.
+  if (two_idx >= 0 && (one_idx < 0 || two_idx < one_idx)) {
+    strncpy(out, two_line, out_len - 1);
+    out[out_len - 1] = '\0';
+    return time_fonts[two_idx];
+  }
+  if (one_idx >= 0) {
+    strncpy(out, one_line, out_len - 1);
+    out[out_len - 1] = '\0';
+    return time_fonts[one_idx];
+  }
+
+  // Nothing fit either way: natural word-wrap at the smallest font.
   strncpy(out, text, out_len - 1);
   out[out_len - 1] = '\0';
   return time_fonts[TIME_FONT_COUNT - 1];
@@ -249,53 +261,6 @@ static GFont fit_single_line(const char* text) {
   return time_fonts[TIME_FONT_COUNT - 1];
 }
 
-// Heart drawn as two top lobes (circles) plus a triangle for the point.
-static void draw_heart(GContext* ctx, GColor color, GPoint origin) {
-  graphics_context_set_fill_color(ctx, color);
-  graphics_fill_circle(ctx, GPoint(origin.x + 3, origin.y + 3), 3);
-  graphics_fill_circle(ctx, GPoint(origin.x + 9, origin.y + 3), 3);
-  GPathInfo tri = {
-      .num_points = 3,
-      .points = (GPoint[]){
-          {origin.x, origin.y + 4}, {origin.x + 12, origin.y + 4}, {origin.x + 6, origin.y + 12}}};
-  GPath* path = gpath_create(&tri);
-  gpath_draw_filled(ctx, path);
-  gpath_destroy(path);
-}
-
-// Footprint-style steps glyph: two small filled rounded blobs offset diagonally.
-static void draw_steps(GContext* ctx, GColor color, GPoint origin) {
-  graphics_context_set_fill_color(ctx, color);
-  graphics_fill_circle(ctx, GPoint(origin.x + 3, origin.y + 8), 3);
-  graphics_fill_rect(ctx, GRect(origin.x, origin.y + 3, 6, 5), 2, GCornersTop);
-  graphics_fill_circle(ctx, GPoint(origin.x + 9, origin.y + 4), 3);
-  graphics_fill_rect(ctx, GRect(origin.x + 6, origin.y + 4, 6, 5), 2, GCornersBottom);
-}
-
-// Crescent moon for sleep: a filled disc with a background-colored disc punched
-// out of its upper right to leave a crescent.
-static void draw_moon(GContext* ctx, GColor color, GPoint origin) {
-  graphics_context_set_fill_color(ctx, color);
-  graphics_fill_circle(ctx, GPoint(origin.x + 6, origin.y + 6), 6);
-  graphics_context_set_fill_color(ctx, bg_color);
-  graphics_fill_circle(ctx, GPoint(origin.x + 9, origin.y + 4), 5);
-}
-
-typedef void (*IconFn)(GContext*, GColor, GPoint);
-
-static IconFn icon_for(SlotContent metric) {
-  switch (metric) {
-    case SLOT_HR:
-      return draw_heart;
-    case SLOT_STEPS:
-      return draw_steps;
-    case SLOT_SLEEP:
-      return draw_moon;
-    default:
-      return NULL;
-  }
-}
-
 static const char* metric_text(SlotContent metric) {
   switch (metric) {
     case SLOT_HR:
@@ -309,70 +274,77 @@ static const char* metric_text(SlotContent metric) {
   }
 }
 
-// Heart-rate zone color. On mono watches everything falls back to time_color.
-static GColor hr_zone_color(int bpm) {
-#if defined(PBL_COLOR)
-  if (bpm <= 0) return time_color;               // no reading
-  if (bpm < HR_ZONE_FATBURN) return time_color;  // rest: neutral
-  if (bpm < HR_ZONE_CARDIO) return GColorGreen;
-  if (bpm < HR_ZONE_PEAK) return GColorOrange;
-  return GColorRed;
-#else
-  (void)bpm;
-  return time_color;
-#endif
-}
-
-// Color for a metric's icon + value: HR by zone, steps/sleep green when the goal
-// is met, otherwise the configured time color.
-static GColor metric_color(SlotContent metric) {
+// Short tag identifying the metric, shown above the value inside the tile border
+// in place of a drawn icon.
+static const char* metric_label(SlotContent metric) {
   switch (metric) {
     case SLOT_HR:
-      return hr_zone_color(hr_value);
+      return "HR";
     case SLOT_STEPS:
-      return PBL_IF_COLOR_ELSE(steps_value >= target_steps ? GColorGreen : time_color, time_color);
+      return "STEG";
     case SLOT_SLEEP:
-      return PBL_IF_COLOR_ELSE(sleep_value_min >= target_sleep_min ? GColorGreen : time_color,
-                               time_color);
+      return "SØVN";
     default:
-      return time_color;
+      return "";
   }
 }
 
-// Icon + value text for one metric, horizontally and vertically centered in
-// cell. `icon` draws a 12x12 glyph at the given origin.
-static void draw_metric_in_cell(GContext* ctx, GRect cell, const char* text, IconFn icon,
-                                GColor color) {
-  GSize text_size = graphics_text_layout_get_content_size(
-      text, hr_font, cell, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft);
+// Tile chrome: rounded-rect border inset from the cell edges, and the gap
+// between the label and value rows.
+#define TILE_BORDER_INSET 2
+#define TILE_BORDER_RADIUS 4
+#define TILE_LABEL_GAP 0
 
-  const int icon_w = 12;
-  const int gap = 3;
-  int content_w = icon_w + gap + text_size.w;
-  int start_x = cell.origin.x + (cell.size.w - content_w) / 2;
-  if (start_x < cell.origin.x) start_x = cell.origin.x;
+// Draws a metric tile as a solid inverse chip: a filled rounded-rect in the
+// foreground color (time_color) with the label stacked above the value inside
+// it, both drawn in the background color so they read as knocked out. The chip's
+// edge is its own fill, not a separate stroke.
+static void draw_metric_in_cell(GContext* ctx, GRect cell, SlotContent metric, GColor fill,
+                                GColor text) {
+  const char* label = metric_label(metric);
+  const char* value = metric_text(metric);
 
-  int icon_y = cell.origin.y + (cell.size.h - 12) / 2;
-  icon(ctx, color, GPoint(start_x, icon_y));
+  GRect chip = grect_inset(cell, GEdgeInsets(TILE_BORDER_INSET));
+  graphics_context_set_fill_color(ctx, fill);
+  graphics_fill_rect(ctx, chip, TILE_BORDER_RADIUS, GCornersAll);
 
-  graphics_context_set_text_color(ctx, color);
+  GSize label_size = graphics_text_layout_get_content_size(
+      label, label_font, chip, GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter);
+  GSize value_size = graphics_text_layout_get_content_size(
+      value, hr_font, chip, GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter);
+
+  // Both system fonts report tall line boxes; trim so the stacked pair sits
+  // optically centered in the chip rather than low.
+  int label_h = label_size.h - 4;
+  int value_h = value_size.h - 6;
+  int group_h = label_h + TILE_LABEL_GAP + value_h;
+  int top = chip.origin.y + (chip.size.h - group_h) / 2;
+
+  graphics_context_set_text_color(ctx, text);
+  graphics_draw_text(ctx, label, label_font,
+                     GRect(chip.origin.x, top - 2, chip.size.w, label_size.h),
+                     GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
   graphics_draw_text(
-      ctx, text, hr_font,
-      GRect(start_x + icon_w + gap, cell.origin.y + (cell.size.h - text_size.h) / 2 - 2,
-            cell.size.w - (start_x - cell.origin.x) - icon_w - gap, text_size.h),
-      GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
+      ctx, value, hr_font,
+      GRect(chip.origin.x, top + label_h + TILE_LABEL_GAP - 4, chip.size.w, value_size.h),
+      GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
 }
 
-// Top row: split bounds into TOP_SLOT_COUNT equal cells, draw each slot's metric.
+// Top row: split bounds into TOP_SLOT_COUNT equal cells, each a bordered tile
+// with a label above its value. Round's top strip is a narrow chord, so only the
+// center slot renders there.
 static void top_panel_update_proc(Layer* layer, GContext* ctx) {
   GRect bounds = layer_get_bounds(layer);
   int cell_w = bounds.size.w / TOP_SLOT_COUNT;
   for (int i = 0; i < TOP_SLOT_COUNT; i++) {
     SlotContent metric = top_slots[i];
-    IconFn icon = icon_for(metric);
-    if (!icon) continue;
+    if (metric == SLOT_NONE) continue;
+#if PBL_ROUND
+    if (i != 1) continue;
+#endif
     GRect cell = GRect(bounds.origin.x + i * cell_w, bounds.origin.y, cell_w, bounds.size.h);
-    draw_metric_in_cell(ctx, cell, metric_text(metric), icon, metric_color(metric));
+    // Inverse chip: foreground fill, background-colored text knocked out of it.
+    draw_metric_in_cell(ctx, cell, metric, time_color, bg_color);
   }
 }
 
@@ -702,6 +674,8 @@ static void setup_decorations(void) {
 #else
   hr_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
 #endif
+  // Small tag above each metric value inside its border.
+  label_font = fonts_get_system_font(FONT_KEY_GOTHIC_14);
 
 #if PBL_ROUND
   layer_inset = 22;
