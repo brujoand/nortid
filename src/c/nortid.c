@@ -457,6 +457,12 @@ static void update_layout(GFont time_font) {
       GTextAlignmentCenter);
 
   int time_y = center_top + (center_height - time_size.h) / 2;
+  // The date panel now carries a hairline along its top edge, which pushes the
+  // date down within its band. Lift the time block 4px to rebalance the gap
+  // above and below it. Only when the date (hence the hairline) is shown.
+  if (bottom_occupied()) {
+    time_y -= 8;
+  }
 
   layer_set_frame(text_layer_get_layer(time_layer),
                   GRect(layer_inset, time_y, time_layer_width, layer_h));
