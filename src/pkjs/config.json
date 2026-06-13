@@ -32,25 +32,45 @@
       },
       {
         "type": "select",
-        "messageKey": "TopSlot",
-        "defaultValue": "1",
-        "label": "Top panel",
+        "messageKey": "TopLeft",
+        "defaultValue": "2",
+        "label": "Top left",
         "options": [
           { "label": "Nothing", "value": "0" },
+          { "label": "Steps", "value": "2" },
           { "label": "Heart Rate", "value": "1" },
-          { "label": "Date", "value": "2" }
+          { "label": "Sleep", "value": "3" }
         ]
       },
       {
         "type": "select",
-        "messageKey": "BottomSlot",
-        "defaultValue": "2",
-        "label": "Bottom panel",
+        "messageKey": "TopCenter",
+        "defaultValue": "0",
+        "label": "Top center",
         "options": [
           { "label": "Nothing", "value": "0" },
+          { "label": "Steps", "value": "2" },
           { "label": "Heart Rate", "value": "1" },
-          { "label": "Date", "value": "2" }
+          { "label": "Sleep", "value": "3" }
         ]
+      },
+      {
+        "type": "select",
+        "messageKey": "TopRight",
+        "defaultValue": "1",
+        "label": "Top right",
+        "options": [
+          { "label": "Nothing", "value": "0" },
+          { "label": "Steps", "value": "2" },
+          { "label": "Heart Rate", "value": "1" },
+          { "label": "Sleep", "value": "3" }
+        ]
+      },
+      {
+        "type": "toggle",
+        "messageKey": "ShowDate",
+        "label": "Show date",
+        "defaultValue": true
       },
       {
         "type": "toggle",
@@ -71,6 +91,33 @@
         "label": "Use 24-hour numbers",
         "description": "Shows hours as 0-23 instead of 1-12. Only applies when numbers are enabled.",
         "defaultValue": false
+      }
+    ]
+  },
+  {
+    "type": "section",
+    "items": [
+      {
+        "type": "heading",
+        "defaultValue": "Goals"
+      },
+      {
+        "type": "text",
+        "defaultValue": "Steps and sleep turn green once the goal is met. Heart rate is colored by zone automatically. Color watches only."
+      },
+      {
+        "type": "input",
+        "messageKey": "TargetSteps",
+        "label": "Steps goal",
+        "defaultValue": "10000",
+        "attributes": { "type": "number", "min": "1" }
+      },
+      {
+        "type": "input",
+        "messageKey": "TargetSleep",
+        "label": "Sleep goal (hours)",
+        "defaultValue": "6",
+        "attributes": { "type": "number", "min": "1" }
       }
     ]
   },

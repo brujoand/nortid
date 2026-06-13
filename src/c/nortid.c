@@ -27,20 +27,57 @@ static Language current_language = LANG_NO;
 #define PERSIST_KEY_BG_COLOR 3
 #define PERSIST_KEY_TIME_COLOR 4
 #define PERSIST_KEY_DATE_COLOR 5
-#define PERSIST_KEY_TOP_SLOT 8
-#define PERSIST_KEY_BOTTOM_SLOT 10
+#define PERSIST_KEY_TOP_LEFT 8
+#define PERSIST_KEY_TOP_CENTER 9
+#define PERSIST_KEY_TOP_RIGHT 10
+#define PERSIST_KEY_SHOW_DATE 11
 #define PERSIST_KEY_NUMERIC 12
 #define PERSIST_KEY_ONELINE 13
 #define PERSIST_KEY_HOUR24 14
+#define PERSIST_KEY_TARGET_STEPS 15
+#define PERSIST_KEY_TARGET_SLEEP 17
 #define TIME_LAYER_HEIGHT 80
-#define PANEL_HEIGHT 28
-#define HR_TEXT_SIZE 8
+// Emery (Pebble Time 2, 200x228) has room for a taller top strip per the design
+// research; other platforms keep the compact panels.
+#if defined(PBL_PLATFORM_EMERY)
+#define TOP_PANEL_HEIGHT 40
+#define BOTTOM_PANEL_HEIGHT 32
+#else
+#define TOP_PANEL_HEIGHT 28
+#define BOTTOM_PANEL_HEIGHT 28
+#endif
+#define METRIC_TEXT_SIZE 8
 #define HR_SAMPLE_PERIOD_S 600
+#define TOP_SLOT_COUNT 3
 
-typedef enum { SLOT_NONE = 0, SLOT_HR = 1, SLOT_DATE = 2 } SlotContent;
+// Heart-rate zone thresholds (bpm). Below the first is "rest". The face colors
+// the HR value by zone; see hr_zone_color().
+#define HR_ZONE_FATBURN 100
+#define HR_ZONE_CARDIO 140
+#define HR_ZONE_PEAK 170
 
-static SlotContent top_slot = SLOT_HR;
-static SlotContent bottom_slot = SLOT_DATE;
+// Metric shown in a top slot. HR keeps value 1 so existing installs that
+// persisted a heart-rate slot keep it after the upgrade.
+typedef enum {
+  SLOT_NONE = 0,
+  SLOT_HR = 1,
+  SLOT_STEPS = 2,
+  SLOT_SLEEP = 3,
+} SlotContent;
+
+// Top row, left to right. Default: steps | (empty) | heart rate.
+static SlotContent top_slots[TOP_SLOT_COUNT] = {SLOT_STEPS, SLOT_NONE, SLOT_HR};
+static bool show_date = true;
+
+// Daily goals: steps/sleep values turn green once met. Sleep stored in minutes.
+static int target_steps = 10000;
+static int target_sleep_min = 360;  // 6h
+
+// Raw current readings, kept alongside the formatted buffers so color logic can
+// compare against goals/zones.
+static int steps_value = 0;
+static int hr_value = 0;
+static int sleep_value_min = 0;
 
 static bool numeric_time = false;
 static bool one_line_time = false;
@@ -52,21 +89,39 @@ static GColor date_color;
 
 static char time_buffer[TIME_BUFFER_SIZE];
 static char date_buffer[DATE_BUFFER_SIZE];
-static char hr_buffer[HR_TEXT_SIZE];
+static char hr_buffer[METRIC_TEXT_SIZE];
+static char steps_buffer[METRIC_TEXT_SIZE];
+static char sleep_buffer[METRIC_TEXT_SIZE];
 
-// Generic panel layers. Each holds one SlotContent (passed via layer data) so a
-// single update proc can render either heart rate or the date in either panel.
+// One panel layer for the top row (split into TOP_SLOT_COUNT cells) and one for
+// the date at the bottom.
 static Layer* top_panel = NULL;
 static Layer* bottom_panel = NULL;
 #if defined(PBL_HEALTH)
 static bool health_active = false;
 #endif
 
-static bool hr_shown(void) { return top_slot == SLOT_HR || bottom_slot == SLOT_HR; }
+static bool slot_used(SlotContent metric) {
+  for (int i = 0; i < TOP_SLOT_COUNT; i++) {
+    if (top_slots[i] == metric) return true;
+  }
+  return false;
+}
 
-static bool top_occupied(void) { return top_slot != SLOT_NONE; }
+#if defined(PBL_HEALTH)
+static bool health_shown(void) {
+  return slot_used(SLOT_HR) || slot_used(SLOT_STEPS) || slot_used(SLOT_SLEEP);
+}
+#endif
 
-static bool bottom_occupied(void) { return bottom_slot != SLOT_NONE; }
+static bool top_occupied(void) {
+  for (int i = 0; i < TOP_SLOT_COUNT; i++) {
+    if (top_slots[i] != SLOT_NONE) return true;
+  }
+  return false;
+}
+
+static bool bottom_occupied(void) { return show_date; }
 
 static bool single_line(void) { return numeric_time && one_line_time; }
 
@@ -76,8 +131,8 @@ static bool single_line(void) { return numeric_time && one_line_time; }
 static int time_band_height(void) {
   Layer* root = window_get_root_layer(window);
   int h = layer_get_bounds(root).size.h;
-  int top = top_occupied() ? PANEL_HEIGHT : 0;
-  int bottom = bottom_occupied() ? PANEL_HEIGHT : 0;
+  int top = top_occupied() ? TOP_PANEL_HEIGHT : 0;
+  int bottom = bottom_occupied() ? BOTTOM_PANEL_HEIGHT : 0;
   return h - top - bottom;
 }
 
@@ -116,29 +171,122 @@ static void draw_heart(GContext* ctx, GColor color, GPoint origin) {
   gpath_destroy(path);
 }
 
-// Heart icon + bpm text, horizontally and vertically centered in bounds.
-static void draw_hr_in_rect(GContext* ctx, GRect bounds) {
+// Footprint-style steps glyph: two small filled rounded blobs offset diagonally.
+static void draw_steps(GContext* ctx, GColor color, GPoint origin) {
+  graphics_context_set_fill_color(ctx, color);
+  graphics_fill_circle(ctx, GPoint(origin.x + 3, origin.y + 8), 3);
+  graphics_fill_rect(ctx, GRect(origin.x, origin.y + 3, 6, 5), 2, GCornersTop);
+  graphics_fill_circle(ctx, GPoint(origin.x + 9, origin.y + 4), 3);
+  graphics_fill_rect(ctx, GRect(origin.x + 6, origin.y + 4, 6, 5), 2, GCornersBottom);
+}
+
+// Crescent moon for sleep: a filled disc with a background-colored disc punched
+// out of its upper right to leave a crescent.
+static void draw_moon(GContext* ctx, GColor color, GPoint origin) {
+  graphics_context_set_fill_color(ctx, color);
+  graphics_fill_circle(ctx, GPoint(origin.x + 6, origin.y + 6), 6);
+  graphics_context_set_fill_color(ctx, bg_color);
+  graphics_fill_circle(ctx, GPoint(origin.x + 9, origin.y + 4), 5);
+}
+
+typedef void (*IconFn)(GContext*, GColor, GPoint);
+
+static IconFn icon_for(SlotContent metric) {
+  switch (metric) {
+    case SLOT_HR:
+      return draw_heart;
+    case SLOT_STEPS:
+      return draw_steps;
+    case SLOT_SLEEP:
+      return draw_moon;
+    default:
+      return NULL;
+  }
+}
+
+static const char* metric_text(SlotContent metric) {
+  switch (metric) {
+    case SLOT_HR:
+      return hr_buffer;
+    case SLOT_STEPS:
+      return steps_buffer;
+    case SLOT_SLEEP:
+      return sleep_buffer;
+    default:
+      return "";
+  }
+}
+
+// Heart-rate zone color. On mono watches everything falls back to time_color.
+static GColor hr_zone_color(int bpm) {
+#if defined(PBL_COLOR)
+  if (bpm <= 0) return time_color;               // no reading
+  if (bpm < HR_ZONE_FATBURN) return time_color;  // rest: neutral
+  if (bpm < HR_ZONE_CARDIO) return GColorGreen;
+  if (bpm < HR_ZONE_PEAK) return GColorOrange;
+  return GColorRed;
+#else
+  (void)bpm;
+  return time_color;
+#endif
+}
+
+// Color for a metric's icon + value: HR by zone, steps/sleep green when the goal
+// is met, otherwise the configured time color.
+static GColor metric_color(SlotContent metric) {
+  switch (metric) {
+    case SLOT_HR:
+      return hr_zone_color(hr_value);
+    case SLOT_STEPS:
+      return PBL_IF_COLOR_ELSE(steps_value >= target_steps ? GColorGreen : time_color, time_color);
+    case SLOT_SLEEP:
+      return PBL_IF_COLOR_ELSE(sleep_value_min >= target_sleep_min ? GColorGreen : time_color,
+                               time_color);
+    default:
+      return time_color;
+  }
+}
+
+// Icon + value text for one metric, horizontally and vertically centered in
+// cell. `icon` draws a 12x12 glyph at the given origin.
+static void draw_metric_in_cell(GContext* ctx, GRect cell, const char* text, IconFn icon,
+                                GColor color) {
   GSize text_size = graphics_text_layout_get_content_size(
-      hr_buffer, hr_font, bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft);
+      text, hr_font, cell, GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft);
 
   const int icon_w = 12;
-  const int gap = 4;
+  const int gap = 3;
   int content_w = icon_w + gap + text_size.w;
-  int start_x = (bounds.size.w - content_w) / 2;
-  if (start_x < 0) start_x = 0;
+  int start_x = cell.origin.x + (cell.size.w - content_w) / 2;
+  if (start_x < cell.origin.x) start_x = cell.origin.x;
 
-  int icon_y = (bounds.size.h - 12) / 2;
-  draw_heart(ctx, time_color, GPoint(start_x, icon_y));
+  int icon_y = cell.origin.y + (cell.size.h - 12) / 2;
+  icon(ctx, color, GPoint(start_x, icon_y));
 
-  graphics_context_set_text_color(ctx, time_color);
-  graphics_draw_text(ctx, hr_buffer, hr_font,
-                     GRect(start_x + icon_w + gap, (bounds.size.h - text_size.h) / 2 - 2,
-                           bounds.size.w - start_x - icon_w - gap, text_size.h),
-                     GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
+  graphics_context_set_text_color(ctx, color);
+  graphics_draw_text(
+      ctx, text, hr_font,
+      GRect(start_x + icon_w + gap, cell.origin.y + (cell.size.h - text_size.h) / 2 - 2,
+            cell.size.w - (start_x - cell.origin.x) - icon_w - gap, text_size.h),
+      GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
+}
+
+// Top row: split bounds into TOP_SLOT_COUNT equal cells, draw each slot's metric.
+static void top_panel_update_proc(Layer* layer, GContext* ctx) {
+  GRect bounds = layer_get_bounds(layer);
+  int cell_w = bounds.size.w / TOP_SLOT_COUNT;
+  for (int i = 0; i < TOP_SLOT_COUNT; i++) {
+    SlotContent metric = top_slots[i];
+    IconFn icon = icon_for(metric);
+    if (!icon) continue;
+    GRect cell = GRect(bounds.origin.x + i * cell_w, bounds.origin.y, cell_w, bounds.size.h);
+    draw_metric_in_cell(ctx, cell, metric_text(metric), icon, metric_color(metric));
+  }
 }
 
 // Date text, horizontally and vertically centered in bounds.
-static void draw_date_in_rect(GContext* ctx, GRect bounds) {
+static void bottom_panel_update_proc(Layer* layer, GContext* ctx) {
+  GRect bounds = layer_get_bounds(layer);
   GSize text_size = graphics_text_layout_get_content_size(
       date_buffer, date_font, bounds, GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter);
 
@@ -148,34 +296,15 @@ static void draw_date_in_rect(GContext* ctx, GRect bounds) {
                      GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
 }
 
-static void panel_update_proc(Layer* layer, GContext* ctx) {
-  SlotContent content = *(SlotContent*)layer_get_data(layer);
-  GRect bounds = layer_get_bounds(layer);
-  if (content == SLOT_HR) {
-    draw_hr_in_rect(ctx, bounds);
-  } else if (content == SLOT_DATE) {
-    draw_date_in_rect(ctx, bounds);
-  }
-}
-
-static Layer* create_panel(SlotContent content) {
-  Layer* layer = layer_create_with_data(GRect(0, 0, 0, 0), sizeof(SlotContent));
-  *(SlotContent*)layer_get_data(layer) = content;
-  layer_set_update_proc(layer, panel_update_proc);
-  layer_add_child(window_get_root_layer(window), layer);
-  return layer;
-}
-
-// Create the panel for `slot` if it holds content, destroy it otherwise. Keeps
-// the stored content marker in sync with the current slot value.
-static void sync_panel(Layer** panel, SlotContent slot) {
-  if (slot != SLOT_NONE && !*panel) {
-    *panel = create_panel(slot);
-  } else if (slot == SLOT_NONE && *panel) {
+// Create the panel and attach `proc` if `wanted`, destroy it otherwise.
+static void sync_panel(Layer** panel, bool wanted, LayerUpdateProc proc) {
+  if (wanted && !*panel) {
+    *panel = layer_create(GRect(0, 0, 0, 0));
+    layer_set_update_proc(*panel, proc);
+    layer_add_child(window_get_root_layer(window), *panel);
+  } else if (!wanted && *panel) {
     layer_destroy(*panel);
     *panel = NULL;
-  } else if (*panel) {
-    *(SlotContent*)layer_get_data(*panel) = slot;
   }
 }
 
@@ -183,8 +312,8 @@ static void update_layout(GFont time_font) {
   Layer* root = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(root);
 
-  int center_top = top_occupied() ? PANEL_HEIGHT : 0;
-  int center_bottom = bounds.size.h - (bottom_occupied() ? PANEL_HEIGHT : 0);
+  int center_top = top_occupied() ? TOP_PANEL_HEIGHT : 0;
+  int center_bottom = bounds.size.h - (bottom_occupied() ? BOTTOM_PANEL_HEIGHT : 0);
   int center_height = center_bottom - center_top;
 
   // Single-line fonts can exceed TIME_LAYER_HEIGHT, so give the layer the full
@@ -202,11 +331,11 @@ static void update_layout(GFont time_font) {
                   GRect(layer_inset, time_y, time_layer_width, layer_h));
 
   if (top_panel) {
-    layer_set_frame(top_panel, GRect(layer_inset, 0, time_layer_width, PANEL_HEIGHT));
+    layer_set_frame(top_panel, GRect(layer_inset, 0, time_layer_width, TOP_PANEL_HEIGHT));
   }
   if (bottom_panel) {
-    layer_set_frame(bottom_panel, GRect(layer_inset, bounds.size.h - PANEL_HEIGHT, time_layer_width,
-                                        PANEL_HEIGHT));
+    layer_set_frame(bottom_panel, GRect(layer_inset, bounds.size.h - BOTTOM_PANEL_HEIGHT,
+                                        time_layer_width, BOTTOM_PANEL_HEIGHT));
   }
 }
 
@@ -215,30 +344,48 @@ static void mark_panels_dirty(void) {
   if (bottom_panel) layer_mark_dirty(bottom_panel);
 }
 
-static void refresh_heart_rate(void) {
+// Reads the health metrics currently shown into their text buffers and marks
+// the top panel for redraw. Off-watch (no health) all metrics read as "--".
+static void refresh_metrics(void) {
 #if defined(PBL_HEALTH)
-  HealthValue bpm = health_service_peek_current_value(HealthMetricHeartRateBPM);
-  if (bpm > 0) {
-    snprintf(hr_buffer, HR_TEXT_SIZE, "%d", (int)bpm);
-  } else {
-    snprintf(hr_buffer, HR_TEXT_SIZE, "--");
+  if (slot_used(SLOT_HR)) {
+    HealthValue bpm = health_service_peek_current_value(HealthMetricHeartRateBPM);
+    hr_value = bpm > 0 ? (int)bpm : 0;
+    if (hr_value > 0) {
+      snprintf(hr_buffer, METRIC_TEXT_SIZE, "%d", hr_value);
+    } else {
+      snprintf(hr_buffer, METRIC_TEXT_SIZE, "--");
+    }
+  }
+
+  if (slot_used(SLOT_STEPS)) {
+    // Decimal thousands with unit, e.g. 8420 -> "8.4k". Under 1000 reads "0.xk".
+    steps_value = (int)health_service_sum_today(HealthMetricStepCount);
+    snprintf(steps_buffer, METRIC_TEXT_SIZE, "%d.%dk", steps_value / 1000,
+             (steps_value % 1000) / 100);
+  }
+
+  if (slot_used(SLOT_SLEEP)) {
+    sleep_value_min = (int)(health_service_sum_today(HealthMetricSleepSeconds) / 60);
+    snprintf(sleep_buffer, METRIC_TEXT_SIZE, "%d:%02d", sleep_value_min / 60, sleep_value_min % 60);
   }
 #endif
-  mark_panels_dirty();
+  if (top_panel) layer_mark_dirty(top_panel);
 }
 
 #if defined(PBL_HEALTH)
 static void health_handler(HealthEventType event, void* context) {
   (void)context;
-  if (event == HealthEventHeartRateUpdate || event == HealthEventSignificantUpdate) {
-    refresh_heart_rate();
+  if (event == HealthEventHeartRateUpdate || event == HealthEventMovementUpdate ||
+      event == HealthEventSleepUpdate || event == HealthEventSignificantUpdate) {
+    refresh_metrics();
   }
 }
 
-// Subscribes to health events and sets the sampling period while heart rate is
-// shown in any slot; unsubscribes when it is not.
-static void apply_hr_state(void) {
-  bool want = hr_shown();
+// Subscribes to health events and sets the heart-rate sampling period while any
+// health metric is shown; unsubscribes when none are.
+static void apply_health_state(void) {
+  bool want = health_shown();
 
   if (want && !health_active) {
     health_service_events_subscribe(health_handler, NULL);
@@ -249,24 +396,35 @@ static void apply_hr_state(void) {
   }
 
   if (want) {
-    health_service_set_heart_rate_sample_period(HR_SAMPLE_PERIOD_S);
-    refresh_heart_rate();
+    if (slot_used(SLOT_HR)) {
+      health_service_set_heart_rate_sample_period(HR_SAMPLE_PERIOD_S);
+    }
+    refresh_metrics();
   }
 }
 #endif
 
-// Recreates panel layers to match the current slot configuration and updates
-// the health subscription accordingly.
+// Recreates panel layers to match the current configuration and updates the
+// health subscription accordingly.
 static void apply_slots(void) {
-  sync_panel(&top_panel, top_slot);
-  sync_panel(&bottom_panel, bottom_slot);
+  sync_panel(&top_panel, top_occupied(), top_panel_update_proc);
+  sync_panel(&bottom_panel, show_date, bottom_panel_update_proc);
 
-  if (!hr_shown()) {
-    snprintf(hr_buffer, HR_TEXT_SIZE, "--");
+  if (!slot_used(SLOT_HR)) {
+    snprintf(hr_buffer, METRIC_TEXT_SIZE, "--");
+    hr_value = 0;
+  }
+  if (!slot_used(SLOT_STEPS)) {
+    snprintf(steps_buffer, METRIC_TEXT_SIZE, "--");
+    steps_value = 0;
+  }
+  if (!slot_used(SLOT_SLEEP)) {
+    snprintf(sleep_buffer, METRIC_TEXT_SIZE, "--");
+    sleep_value_min = 0;
   }
 
 #if defined(PBL_HEALTH)
-  apply_hr_state();
+  apply_health_state();
 #endif
 }
 
@@ -284,7 +442,7 @@ static void refresh_clock(struct tm* time, TimeUnits units_changed) {
   text_layer_set_text(time_layer, time_buffer);
 
   update_layout(time_font);
-  refresh_heart_rate();
+  refresh_metrics();
   mark_panels_dirty();
 }
 
@@ -332,17 +490,48 @@ static void inbox_received_handler(DictionaryIterator* iter, void* context) {
     changed = true;
   }
 
-  Tuple* top_tuple = dict_find(iter, MESSAGE_KEY_TopSlot);
-  if (top_tuple) {
-    top_slot = (SlotContent)atoi(top_tuple->value->cstring);
-    persist_write_int(PERSIST_KEY_TOP_SLOT, top_slot);
+  Tuple* top_left_tuple = dict_find(iter, MESSAGE_KEY_TopLeft);
+  if (top_left_tuple) {
+    top_slots[0] = (SlotContent)atoi(top_left_tuple->value->cstring);
+    persist_write_int(PERSIST_KEY_TOP_LEFT, top_slots[0]);
     changed = true;
   }
 
-  Tuple* bottom_tuple = dict_find(iter, MESSAGE_KEY_BottomSlot);
-  if (bottom_tuple) {
-    bottom_slot = (SlotContent)atoi(bottom_tuple->value->cstring);
-    persist_write_int(PERSIST_KEY_BOTTOM_SLOT, bottom_slot);
+  Tuple* top_center_tuple = dict_find(iter, MESSAGE_KEY_TopCenter);
+  if (top_center_tuple) {
+    top_slots[1] = (SlotContent)atoi(top_center_tuple->value->cstring);
+    persist_write_int(PERSIST_KEY_TOP_CENTER, top_slots[1]);
+    changed = true;
+  }
+
+  Tuple* top_right_tuple = dict_find(iter, MESSAGE_KEY_TopRight);
+  if (top_right_tuple) {
+    top_slots[2] = (SlotContent)atoi(top_right_tuple->value->cstring);
+    persist_write_int(PERSIST_KEY_TOP_RIGHT, top_slots[2]);
+    changed = true;
+  }
+
+  Tuple* show_date_tuple = dict_find(iter, MESSAGE_KEY_ShowDate);
+  if (show_date_tuple) {
+    show_date = show_date_tuple->value->int32 != 0;
+    persist_write_bool(PERSIST_KEY_SHOW_DATE, show_date);
+    changed = true;
+  }
+
+  Tuple* target_steps_tuple = dict_find(iter, MESSAGE_KEY_TargetSteps);
+  if (target_steps_tuple) {
+    target_steps = atoi(target_steps_tuple->value->cstring);
+    if (target_steps < 1) target_steps = 1;
+    persist_write_int(PERSIST_KEY_TARGET_STEPS, target_steps);
+    changed = true;
+  }
+
+  Tuple* target_sleep_tuple = dict_find(iter, MESSAGE_KEY_TargetSleep);
+  if (target_sleep_tuple) {
+    // Sent as hours; stored as minutes.
+    target_sleep_min = atoi(target_sleep_tuple->value->cstring) * 60;
+    if (target_sleep_min < 1) target_sleep_min = 1;
+    persist_write_int(PERSIST_KEY_TARGET_SLEEP, target_sleep_min);
     changed = true;
   }
 
@@ -396,7 +585,12 @@ static void setup_decorations(void) {
   time_fonts[6] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_24));
   time_fonts[7] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_20));
   date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_DATE_18));
+  // Emery's taller top strip fits a larger value font; other platforms stay 18.
+#if defined(PBL_PLATFORM_EMERY)
+  hr_font = fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
+#else
   hr_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
+#endif
 
 #if PBL_ROUND
   layer_inset = 22;
@@ -415,7 +609,9 @@ static void setup_decorations(void) {
   text_layer_set_overflow_mode(time_layer, GTextOverflowModeWordWrap);
   layer_add_child(root, text_layer_get_layer(time_layer));
 
-  snprintf(hr_buffer, HR_TEXT_SIZE, "--");
+  snprintf(hr_buffer, METRIC_TEXT_SIZE, "--");
+  snprintf(steps_buffer, METRIC_TEXT_SIZE, "--");
+  snprintf(sleep_buffer, METRIC_TEXT_SIZE, "--");
   apply_slots();
 }
 
@@ -436,11 +632,23 @@ static void load_settings(void) {
   if (persist_exists(PERSIST_KEY_DATE_COLOR)) {
     date_color = GColorFromHEX(persist_read_int(PERSIST_KEY_DATE_COLOR));
   }
-  if (persist_exists(PERSIST_KEY_TOP_SLOT)) {
-    top_slot = (SlotContent)persist_read_int(PERSIST_KEY_TOP_SLOT);
+  if (persist_exists(PERSIST_KEY_TOP_LEFT)) {
+    top_slots[0] = (SlotContent)persist_read_int(PERSIST_KEY_TOP_LEFT);
   }
-  if (persist_exists(PERSIST_KEY_BOTTOM_SLOT)) {
-    bottom_slot = (SlotContent)persist_read_int(PERSIST_KEY_BOTTOM_SLOT);
+  if (persist_exists(PERSIST_KEY_TOP_CENTER)) {
+    top_slots[1] = (SlotContent)persist_read_int(PERSIST_KEY_TOP_CENTER);
+  }
+  if (persist_exists(PERSIST_KEY_TOP_RIGHT)) {
+    top_slots[2] = (SlotContent)persist_read_int(PERSIST_KEY_TOP_RIGHT);
+  }
+  if (persist_exists(PERSIST_KEY_SHOW_DATE)) {
+    show_date = persist_read_bool(PERSIST_KEY_SHOW_DATE);
+  }
+  if (persist_exists(PERSIST_KEY_TARGET_STEPS)) {
+    target_steps = persist_read_int(PERSIST_KEY_TARGET_STEPS);
+  }
+  if (persist_exists(PERSIST_KEY_TARGET_SLEEP)) {
+    target_sleep_min = persist_read_int(PERSIST_KEY_TARGET_SLEEP);
   }
   if (persist_exists(PERSIST_KEY_NUMERIC)) {
     numeric_time = persist_read_bool(PERSIST_KEY_NUMERIC);

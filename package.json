@@ -1,7 +1,7 @@
 {
   "name": "nortid",
   "author": "Tindheim IT",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "keywords": ["pebble-app"],
   "private": true,
   "dependencies": {
@@ -20,7 +20,8 @@
       "aplite",
       "basalt",
       "chalk",
-      "diorite"
+      "diorite",
+      "emery"
     ],
     "resources": {
       "media": [
@@ -85,8 +86,12 @@
       "BackgroundColor": 2,
       "TimeColor": 3,
       "DateColor": 4,
-      "TopSlot": 5,
-      "BottomSlot": 7,
+      "TopLeft": 5,
+      "TopCenter": 7,
+      "TopRight": 10,
+      "ShowDate": 11,
+      "TargetSteps": 12,
+      "TargetSleep": 14,
       "NumericTime": 6,
       "OneLineTime": 8,
       "Hour24Time": 9

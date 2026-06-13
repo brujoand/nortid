@@ -25,19 +25,24 @@ pebble clean
 
 ## Architecture
 
-Single-window Pebble watchface with two text layers (time and date).
+Single-window Pebble watchface: a center time text layer, a top panel split
+into three configurable metric slots (steps / heart rate / sleep), and a
+bottom panel that shows the date when enabled.
 
 **Key files:**
-- `src/nortid.c` - Main application: window setup, tick timer subscription, display refresh
-- `src/time2words.c` - Converts hours/minutes to Norwegian fuzzy time text
-- `src/date2words.c` - Converts date to Norwegian weekday/date/month format
+- `src/c/nortid.c` - Main application: window setup, tick timer subscription, panel rendering, display refresh
+- `src/c/time2words.c` - Converts hours/minutes to fuzzy time text
+- `src/c/date2words.c` - Converts date to weekday/date/month format
+- `src/c/lang/` - Per-language word tables (Norwegian, Danish, Swedish)
+- `src/pkjs/config.json` - Clay settings UI; `package.json` `messageKeys` map config keys to app message keys
+- `docs/FONT_NOTES.md` - Time-font research takeaways: why we bundle a size ladder and measure-then-fit, and why the font is not monospaced
 
 **Data flow:**
 1. `main()` initializes window and subscribes to `MINUTE_UNIT` tick events
 2. Each minute, `refresh_clock()` is called
-3. `fuzzy_time_to_words()` converts current time to Norwegian string
-4. `date_to_words()` converts current date to Norwegian string
-5. Text layers are updated with the new strings
+3. `fuzzy_time_to_words()` converts current time to a localized string
+4. `date_to_words()` converts current date to a localized string
+5. The time text layer and the top/bottom panels are refreshed
 
 **Norwegian time format:**
 - Uses 12-hour format with fuzzy rounding
