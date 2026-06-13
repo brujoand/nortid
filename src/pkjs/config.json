@@ -99,33 +99,6 @@
     "items": [
       {
         "type": "heading",
-        "defaultValue": "Goals"
-      },
-      {
-        "type": "text",
-        "defaultValue": "Steps and sleep turn green once the goal is met. Heart rate is colored by zone automatically. Color watches only."
-      },
-      {
-        "type": "input",
-        "messageKey": "TargetSteps",
-        "label": "Steps goal",
-        "defaultValue": "10000",
-        "attributes": { "type": "number", "min": "1" }
-      },
-      {
-        "type": "input",
-        "messageKey": "TargetSleep",
-        "label": "Sleep goal (hours)",
-        "defaultValue": "6",
-        "attributes": { "type": "number", "min": "1" }
-      }
-    ]
-  },
-  {
-    "type": "section",
-    "items": [
-      {
-        "type": "heading",
         "defaultValue": "Colors"
       },
       {
