@@ -19,7 +19,9 @@ def _sync_version_from_git():
     instead of a stale hand-edited value. No-op when git/tags are unavailable.
     Rewrites only the version string so the rest of the file (formatting,
     compact arrays) is left untouched."""
-    here = os.path.dirname(os.path.abspath(__file__))
+    # waf execs this wscript without defining __file__; the project root is the
+    # cwd during configure/build, so derive paths from there.
+    here = os.getcwd()
     try:
         tag = subprocess.check_output(
             ['git', 'describe', '--tags', '--abbrev=0'],
