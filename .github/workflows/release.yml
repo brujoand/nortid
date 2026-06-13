@@ -50,6 +50,22 @@ jobs:
       - name: Install pebble-tool
         run: pip install pebble-tool
 
+      - name: Patch pebble-tool to replace appstore screenshots
+        run: |
+          # pebble publish hardcodes replaceScreenshots="false", so every
+          # release appends a fresh set of screenshots to the appstore listing
+          # instead of replacing the previous one. Flip it to "true" so old
+          # assets are dropped. See coredevices/pebble-tool publish.py.
+          publish_py=$(python3 -c "import pebble_tool.commands.publish as m; print(m.__file__)")
+          before=$(grep -c '"replaceScreenshots": "false"' "$publish_py" || true)
+          if [ "$before" -ne 1 ]; then
+            echo "Expected exactly 1 'replaceScreenshots: false' in $publish_py, found $before" >&2
+            echo "pebble-tool internals changed; review the patch." >&2
+            exit 1
+          fi
+          sed -i 's/"replaceScreenshots": "false"/"replaceScreenshots": "true"/' "$publish_py"
+          grep -n '"replaceScreenshots"' "$publish_py"
+
       - name: Install Pebble SDK
         if: steps.sdk-cache.outputs.cache-hit != 'true'
         run: pebble sdk install latest
