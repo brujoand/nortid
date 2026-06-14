@@ -275,17 +275,21 @@ static const char* metric_text(SlotContent metric) {
 static void draw_heart_icon(GContext* ctx, int cx, int cy, GColor color) {
   graphics_context_set_fill_color(ctx, color);
   int r = 3;
-  int lobe_y = cy - 2;
-  // Spread the lobes so the cleft between them is one pixel wide, not merged.
-  graphics_fill_circle(ctx, GPoint(cx - r + 1, lobe_y), r);
-  graphics_fill_circle(ctx, GPoint(cx + r - 1, lobe_y), r);
-  // Body: a tapering triangle from the lobes' full width down to the tip. Start
-  // at the lobe centers' row so it fuses with the circles into one shape.
-  int top_half = r + 1;
-  for (int dy = 0; dy <= top_half + 1; dy++) {
-    int half = top_half - dy;
-    if (half < 0) half = 0;
-    int y = lobe_y + dy + 1;
+  int lobe_y = cy - 3;
+  // Lobe centers spread a full radius apart so the two humps stay distinct and
+  // a real notch (cleft) shows between their tops, instead of merging into one
+  // round bump.
+  graphics_fill_circle(ctx, GPoint(cx - r, lobe_y), r);
+  graphics_fill_circle(ctx, GPoint(cx + r, lobe_y), r);
+  // Body: an inverted triangle from the outer edges of the lobes down to a
+  // single-pixel tip. It starts at the lobe-center row, so it fills the valley
+  // *below* the cleft and fuses the lobes into the body -- but the cleft above
+  // this row is left untouched, keeping the downward point at top center.
+  int half_top = 2 * r;  // outer edge of the left lobe to outer edge of right
+  for (int dy = 0;; dy++) {
+    int half = half_top - dy;
+    if (half < 0) break;
+    int y = lobe_y + dy;
     graphics_draw_line(ctx, GPoint(cx - half, y), GPoint(cx + half, y));
   }
 }
@@ -304,7 +308,7 @@ static void draw_sleep_icon(GContext* ctx, int cx, int cy, GColor color) {
   graphics_context_set_stroke_color(ctx, color);
   // Large Z down-left, small Z up-right: the classic rising "zzz" reading.
   draw_z(ctx, cx - 7, cy - 1, 6);
-  draw_z(ctx, cx + 1, cy - 6, 5);
+  draw_z(ctx, cx + 3, cy - 6, 5);
 }
 
 // One footprint centered on (fx, fy): a rounded sole (kidney-bean shape, wider
