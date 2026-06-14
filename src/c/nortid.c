@@ -36,6 +36,8 @@ static Language current_language = LANG_NO;
 #define PERSIST_KEY_NUMERIC 12
 #define PERSIST_KEY_ONELINE 13
 #define PERSIST_KEY_HOUR24 14
+#define PERSIST_KEY_QUIET_INDICATOR 15
+#define PERSIST_KEY_BATTERY_INDICATOR 16
 #define TIME_LAYER_HEIGHT 80
 // Emery (Pebble Time 2, 200x228) has room for a taller top strip per the design
 // research; other platforms keep the compact panels.
@@ -75,6 +77,10 @@ static int sleep_value_min = 0;
 static bool numeric_time = false;
 static bool one_line_time = false;
 static bool hour24_time = false;
+// Corner status indicators, default on. Forced off on round (chalk) where the
+// clipped corners leave no room.
+static bool show_quiet_indicator = true;
+static bool show_battery_indicator = true;
 
 static GColor bg_color;
 static GColor time_color;
@@ -90,9 +96,21 @@ static char sleep_buffer[METRIC_TEXT_SIZE];
 // the date at the bottom.
 static Layer* top_panel = NULL;
 static Layer* bottom_panel = NULL;
+// Small overlay pinned to the bottom-left corner, drawn only while the watch is
+// in Quiet Time (do-not-disturb). Independent of the date panel so it shows even
+// when the date is hidden.
+static Layer* quiet_layer = NULL;
+// Mirror overlay in the bottom-right corner, drawn when the battery is low and
+// not charging.
+static Layer* battery_layer = NULL;
+// Latest battery reading, updated by the battery-state subscription.
+static BatteryChargeState battery_state;
 #if defined(PBL_HEALTH)
 static bool health_active = false;
 #endif
+
+// Battery is "low" at or below this percentage.
+#define BATTERY_LOW_PCT 20
 
 static bool slot_used(SlotContent metric) {
   for (int i = 0; i < TOP_SLOT_COUNT; i++) {
@@ -434,6 +452,74 @@ static void bottom_panel_update_proc(Layer* layer, GContext* ctx) {
                      GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
 }
 
+// Size of the quiet-time overlay box and its inset from the bottom-left corner.
+#define QUIET_BOX 20
+#define QUIET_MARGIN 4
+
+// A muted-speaker glyph: a right-pointing speaker (square body on the left + cone
+// flaring to the right) with an X further right where the sound waves would be.
+// Drawn centered on (cx, cy). Speaker and X sit side by side so they read as
+// separate elements rather than overlapping.
+static void draw_quiet_icon(GContext* ctx, int cx, int cy, GColor color) {
+  graphics_context_set_stroke_color(ctx, color);
+  graphics_context_set_fill_color(ctx, color);
+
+  // Speaker body: small square at the left. Cone: triangle flaring out to the
+  // RIGHT, drawn as a fan of vertical lines that grow toward the mouth (rightmost).
+  int body_x = cx - 7;
+  graphics_fill_rect(ctx, GRect(body_x, cy - 2, 3, 5), 0, GCornersAll);  // magnet body
+  for (int dx = 0; dx <= 4; dx++) {
+    int half = 1 + dx;  // cone widens toward the right mouth
+    graphics_draw_line(ctx, GPoint(body_x + 3 + dx, cy - half), GPoint(body_x + 3 + dx, cy + half));
+  }
+
+  // X to the right of the cone, where the waves would emit. Two short doubled
+  // diagonals forming a compact cross, clear of the speaker mouth.
+  int xl = cx + 3, xr = cx + 8, yt = cy - 3, yb = cy + 3;
+  graphics_draw_line(ctx, GPoint(xl, yt), GPoint(xr, yb));  // "\"
+  graphics_draw_line(ctx, GPoint(xl, yt + 1), GPoint(xr, yb + 1));
+  graphics_draw_line(ctx, GPoint(xl, yb), GPoint(xr, yt));  // "/"
+  graphics_draw_line(ctx, GPoint(xl, yb - 1), GPoint(xr, yt - 1));
+}
+
+// Draws the silent-mode glyph only while Quiet Time is active. Polled each
+// minute via the tick handler, the SDK-recommended cadence.
+static void quiet_layer_update_proc(Layer* layer, GContext* ctx) {
+  if (!show_quiet_indicator || !quiet_time_is_active()) return;
+  GRect bounds = layer_get_bounds(layer);
+  draw_quiet_icon(ctx, bounds.origin.x + bounds.size.w / 2, bounds.origin.y + bounds.size.h / 2,
+                  time_color);
+}
+
+// A near-empty battery outline centered on (cx, cy): a horizontal body with a
+// terminal nub on the right and a small fill sliver at the left to read as
+// "almost drained".
+static void draw_battery_icon(GContext* ctx, int cx, int cy, GColor color) {
+  graphics_context_set_stroke_color(ctx, color);
+  graphics_context_set_fill_color(ctx, color);
+
+  // Body: 14 wide, 8 tall, terminal nub 2 wide on the right.
+  int bw = 14, bh = 8;
+  GRect body = GRect(cx - bw / 2, cy - bh / 2, bw, bh);
+  graphics_draw_rect(ctx, body);
+  graphics_fill_rect(ctx, GRect(body.origin.x + bw, cy - 2, 2, 4), 0, GCornersAll);  // terminal
+
+  // Drained level: a thin sliver at the left inside the body.
+  graphics_fill_rect(ctx, GRect(body.origin.x + 2, body.origin.y + 2, 2, bh - 4), 0, GCornersAll);
+}
+
+// Draws the low-battery glyph when charge is at or below the threshold and the
+// watch is not charging. Refreshed by the battery-state subscription.
+static void battery_layer_update_proc(Layer* layer, GContext* ctx) {
+  if (!show_battery_indicator || battery_state.is_charging ||
+      battery_state.charge_percent > BATTERY_LOW_PCT) {
+    return;
+  }
+  GRect bounds = layer_get_bounds(layer);
+  draw_battery_icon(ctx, bounds.origin.x + bounds.size.w / 2, bounds.origin.y + bounds.size.h / 2,
+                    time_color);
+}
+
 // Create the panel and attach `proc` if `wanted`, destroy it otherwise.
 static void sync_panel(Layer** panel, bool wanted, LayerUpdateProc proc) {
   if (wanted && !*panel) {
@@ -486,6 +572,12 @@ static void update_layout(GFont time_font) {
 static void mark_panels_dirty(void) {
   if (top_panel) layer_mark_dirty(top_panel);
   if (bottom_panel) layer_mark_dirty(bottom_panel);
+}
+
+// Stores the new charge state and redraws the battery overlay.
+static void battery_handler(BatteryChargeState state) {
+  battery_state = state;
+  if (battery_layer) layer_mark_dirty(battery_layer);
 }
 
 // Reads the health metrics currently shown into their text buffers and marks
@@ -619,6 +711,7 @@ static void refresh_clock(struct tm* time, TimeUnits units_changed) {
   update_layout(time_font);
   refresh_metrics();
   mark_panels_dirty();
+  if (quiet_layer) layer_mark_dirty(quiet_layer);
 }
 
 static void force_refresh(void) {
@@ -714,6 +807,29 @@ static void inbox_received_handler(DictionaryIterator* iter, void* context) {
     changed = true;
   }
 
+  Tuple* quiet_ind_tuple = dict_find(iter, MESSAGE_KEY_ShowQuietIndicator);
+  if (quiet_ind_tuple) {
+    show_quiet_indicator = quiet_ind_tuple->value->int32 != 0;
+    persist_write_bool(PERSIST_KEY_QUIET_INDICATOR, show_quiet_indicator);
+    changed = true;
+  }
+
+  Tuple* battery_ind_tuple = dict_find(iter, MESSAGE_KEY_ShowBatteryIndicator);
+  if (battery_ind_tuple) {
+    show_battery_indicator = battery_ind_tuple->value->int32 != 0;
+    persist_write_bool(PERSIST_KEY_BATTERY_INDICATOR, show_battery_indicator);
+    changed = true;
+  }
+
+#if PBL_ROUND
+  // Round (chalk) has no room for the corner indicators regardless of config.
+  show_quiet_indicator = false;
+  show_battery_indicator = false;
+#endif
+
+  if (quiet_layer) layer_mark_dirty(quiet_layer);
+  if (battery_layer) layer_mark_dirty(battery_layer);
+
   apply_slots();
   force_refresh();
 
@@ -749,11 +865,13 @@ static void setup_decorations(void) {
   time_fonts[6] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_28));
   time_fonts[7] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_24));
   time_fonts[8] = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_TIME_20));
-  date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_DATE_24));
-  // Emery's taller top strip fits a larger value font; other platforms stay 18.
+  // Emery is wide enough for the 24px date; narrower platforms use 20px so the
+  // date text clears the bottom-corner status icons.
 #if defined(PBL_PLATFORM_EMERY)
+  date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_DATE_24));
   hr_font = fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
 #else
+  date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_DATE_20));
   hr_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
 #endif
 
@@ -778,6 +896,19 @@ static void setup_decorations(void) {
   snprintf(steps_buffer, METRIC_TEXT_SIZE, "--");
   snprintf(sleep_buffer, METRIC_TEXT_SIZE, "--");
   apply_slots();
+
+  // Bottom-left quiet-time overlay, inset by layer_inset so it clears round
+  // watches' clipped corners. Drawn above the panels; only visible when active.
+  int corner_y = bounds.size.h - QUIET_BOX - QUIET_MARGIN;
+  quiet_layer = layer_create(GRect(layer_inset, corner_y, QUIET_BOX, QUIET_BOX));
+  layer_set_update_proc(quiet_layer, quiet_layer_update_proc);
+  layer_add_child(root, quiet_layer);
+
+  // Mirror overlay in the bottom-right corner for the low-battery glyph.
+  int battery_x = bounds.size.w - layer_inset - QUIET_BOX;
+  battery_layer = layer_create(GRect(battery_x, corner_y, QUIET_BOX, QUIET_BOX));
+  layer_set_update_proc(battery_layer, battery_layer_update_proc);
+  layer_add_child(root, battery_layer);
 }
 
 static void load_settings(void) {
@@ -818,10 +949,23 @@ static void load_settings(void) {
   if (persist_exists(PERSIST_KEY_HOUR24)) {
     hour24_time = persist_read_bool(PERSIST_KEY_HOUR24);
   }
+  if (persist_exists(PERSIST_KEY_QUIET_INDICATOR)) {
+    show_quiet_indicator = persist_read_bool(PERSIST_KEY_QUIET_INDICATOR);
+  }
+  if (persist_exists(PERSIST_KEY_BATTERY_INDICATOR)) {
+    show_battery_indicator = persist_read_bool(PERSIST_KEY_BATTERY_INDICATOR);
+  }
+
+#if PBL_ROUND
+  // Round (chalk) clips the corners, leaving no room for the corner indicators.
+  show_quiet_indicator = false;
+  show_battery_indicator = false;
+#endif
 }
 
 static void deinit(void) {
   tick_timer_service_unsubscribe();
+  battery_state_service_unsubscribe();
 #if defined(PBL_HEALTH)
   if (health_active) {
     health_service_events_unsubscribe();
@@ -829,6 +973,8 @@ static void deinit(void) {
 #endif
   if (top_panel) layer_destroy(top_panel);
   if (bottom_panel) layer_destroy(bottom_panel);
+  if (quiet_layer) layer_destroy(quiet_layer);
+  if (battery_layer) layer_destroy(battery_layer);
   text_layer_destroy(time_layer);
   for (int i = 0; i < TIME_FONT_COUNT; i++) {
     fonts_unload_custom_font(time_fonts[i]);
@@ -843,6 +989,9 @@ int main(void) {
 
   app_message_register_inbox_received(inbox_received_handler);
   app_message_open(128, 128);
+
+  battery_state = battery_state_service_peek();
+  battery_state_service_subscribe(battery_handler);
 
   force_refresh();
 

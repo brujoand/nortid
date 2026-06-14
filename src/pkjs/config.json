@@ -91,6 +91,20 @@
         "label": "Use 24-hour numbers",
         "description": "Shows hours as 0-23 instead of 1-12. Only applies when numbers are enabled.",
         "defaultValue": false
+      },
+      {
+        "type": "toggle",
+        "messageKey": "ShowQuietIndicator",
+        "label": "Quiet Time indicator",
+        "description": "Shows a muted-speaker icon in the bottom-left while Quiet Time is active. Not shown on round watches.",
+        "defaultValue": true
+      },
+      {
+        "type": "toggle",
+        "messageKey": "ShowBatteryIndicator",
+        "label": "Low battery indicator",
+        "description": "Shows a battery icon in the bottom-right when the battery is at or below 20% and not charging. Not shown on round watches.",
+        "defaultValue": true
       }
     ]
   },

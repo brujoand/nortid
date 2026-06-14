@@ -1,7 +1,7 @@
 {
   "name": "nortid",
   "author": "Tindheim IT",
-  "version": "6.5",
+  "version": "6.11",
   "keywords": ["pebble-app"],
   "private": true,
   "dependencies": {
@@ -84,6 +84,12 @@
           "name": "FONT_DATE_24",
           "file": "fonts/Rajdhani-Bold.ttf",
           "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_DATE_20",
+          "file": "fonts/Rajdhani-Bold.ttf",
+          "characterRegex": "[a-zA-ZæøåÆØÅäöüÄÖÜ0-9.,!?'\\-: ]"
         }
       ]
     },
@@ -98,7 +104,9 @@
       "ShowDate": 11,
       "NumericTime": 6,
       "OneLineTime": 8,
-      "Hour24Time": 9
+      "Hour24Time": 9,
+      "ShowQuietIndicator": 12,
+      "ShowBatteryIndicator": 13
     },
     "capabilities": ["configurable", "health"]
   }
