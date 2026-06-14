@@ -125,13 +125,25 @@
         "type": "color",
         "messageKey": "TimeColor",
         "defaultValue": "0xFFFFFF",
-        "label": "Time Text Color"
+        "label": "Text Color"
       },
       {
         "type": "color",
         "messageKey": "DateColor",
         "defaultValue": "0xAAAAAA",
         "label": "Date Text Color"
+      },
+      {
+        "type": "color",
+        "messageKey": "TileBackgroundColor",
+        "defaultValue": "0xFFFFFF",
+        "label": "Tile Background Color"
+      },
+      {
+        "type": "color",
+        "messageKey": "TileForegroundColor",
+        "defaultValue": "0x000000",
+        "label": "Tile Text Color"
       }
     ]
   },

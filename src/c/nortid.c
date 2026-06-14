@@ -38,6 +38,8 @@ static Language current_language = LANG_NO;
 #define PERSIST_KEY_HOUR24 14
 #define PERSIST_KEY_QUIET_INDICATOR 15
 #define PERSIST_KEY_BATTERY_INDICATOR 16
+#define PERSIST_KEY_TILE_FG_COLOR 17
+#define PERSIST_KEY_TILE_BG_COLOR 18
 #define TIME_LAYER_HEIGHT 80
 // Emery (Pebble Time 2, 200x228) has room for a taller top strip per the design
 // research; other platforms keep the compact panels.
@@ -85,6 +87,10 @@ static bool show_battery_indicator = true;
 static GColor bg_color;
 static GColor time_color;
 static GColor date_color;
+// Top-row metric tiles. Foreground is the icon and value text; background is the
+// filled chip behind them. Independent of time/bg colors.
+static GColor tile_fg_color;
+static GColor tile_bg_color;
 
 static char time_buffer[TIME_BUFFER_SIZE];
 static char date_buffer[DATE_BUFFER_SIZE];
@@ -417,8 +423,9 @@ static void top_panel_update_proc(Layer* layer, GContext* ctx) {
     if (i != 1) continue;
 #endif
     GRect cell = GRect(bounds.origin.x + i * cell_w, bounds.origin.y, cell_w, bounds.size.h);
-    // Inverse chip: foreground fill, background-colored text knocked out of it.
-    draw_metric_in_cell(ctx, cell, metric, time_color, bg_color);
+    // Chip filled with the tile background; icon and value drawn in the tile
+    // foreground on top.
+    draw_metric_in_cell(ctx, cell, metric, tile_bg_color, tile_fg_color);
   }
 }
 
@@ -758,6 +765,22 @@ static void inbox_received_handler(DictionaryIterator* iter, void* context) {
     changed = true;
   }
 
+  Tuple* tile_fg_tuple = dict_find(iter, MESSAGE_KEY_TileForegroundColor);
+  if (tile_fg_tuple) {
+    int tile_fg_hex = tile_fg_tuple->value->int32;
+    persist_write_int(PERSIST_KEY_TILE_FG_COLOR, tile_fg_hex);
+    tile_fg_color = GColorFromHEX(tile_fg_hex);
+    changed = true;
+  }
+
+  Tuple* tile_bg_tuple = dict_find(iter, MESSAGE_KEY_TileBackgroundColor);
+  if (tile_bg_tuple) {
+    int tile_bg_hex = tile_bg_tuple->value->int32;
+    persist_write_int(PERSIST_KEY_TILE_BG_COLOR, tile_bg_hex);
+    tile_bg_color = GColorFromHEX(tile_bg_hex);
+    changed = true;
+  }
+
   Tuple* top_left_tuple = dict_find(iter, MESSAGE_KEY_TopLeft);
   if (top_left_tuple) {
     top_slots[0] = (SlotContent)atoi(top_left_tuple->value->cstring);
@@ -915,6 +938,9 @@ static void load_settings(void) {
   bg_color = GColorBlack;
   time_color = GColorWhite;
   date_color = GColorLightGray;
+  // Default tiles match the previous fixed look: white chip, black contents.
+  tile_fg_color = GColorBlack;
+  tile_bg_color = GColorWhite;
 
   if (persist_exists(PERSIST_KEY_LANGUAGE)) {
     current_language = (Language)persist_read_int(PERSIST_KEY_LANGUAGE);
@@ -927,6 +953,12 @@ static void load_settings(void) {
   }
   if (persist_exists(PERSIST_KEY_DATE_COLOR)) {
     date_color = GColorFromHEX(persist_read_int(PERSIST_KEY_DATE_COLOR));
+  }
+  if (persist_exists(PERSIST_KEY_TILE_FG_COLOR)) {
+    tile_fg_color = GColorFromHEX(persist_read_int(PERSIST_KEY_TILE_FG_COLOR));
+  }
+  if (persist_exists(PERSIST_KEY_TILE_BG_COLOR)) {
+    tile_bg_color = GColorFromHEX(persist_read_int(PERSIST_KEY_TILE_BG_COLOR));
   }
   if (persist_exists(PERSIST_KEY_TOP_LEFT)) {
     top_slots[0] = (SlotContent)persist_read_int(PERSIST_KEY_TOP_LEFT);
@@ -988,7 +1020,11 @@ int main(void) {
   setup_decorations();
 
   app_message_register_inbox_received(inbox_received_handler);
-  app_message_open(128, 128);
+  // Clay sends every config key in one message on save. With the full key set
+  // (colors, slots, toggles) the inbound dict exceeds 128 bytes, so size the
+  // inbox generously; an undersized buffer drops the whole message and no
+  // setting applies. The watch sends nothing, so the outbox stays small.
+  app_message_open(512, 64);
 
   battery_state = battery_state_service_peek();
   battery_state_service_subscribe(battery_handler);

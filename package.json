@@ -106,7 +106,9 @@
       "OneLineTime": 8,
       "Hour24Time": 9,
       "ShowQuietIndicator": 12,
-      "ShowBatteryIndicator": 13
+      "ShowBatteryIndicator": 13,
+      "TileForegroundColor": 14,
+      "TileBackgroundColor": 15
     },
     "capabilities": ["configurable", "health"]
   }
