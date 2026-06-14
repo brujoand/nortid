@@ -307,20 +307,23 @@ static void draw_sleep_icon(GContext* ctx, int cx, int cy, GColor color) {
   draw_z(ctx, cx + 1, cy - 6, 5);
 }
 
-// Steps: two footprints. Each print is a sole (a short vertical stack of
-// widening then narrowing dots) plus a toe dot offset toward the lead, so it
-// reads as a foot rather than scattered points. Left foot trails, right leads.
+// One footprint centered on (fx, fy): a rounded sole (kidney-bean shape, wider
+// ball over a narrower offset heel) topped by a short arc of toe beans. The toe
+// row is the cue that reads unmistakably as a footprint at 12px.
 static void draw_foot(GContext* ctx, int fx, int fy) {
-  graphics_fill_circle(ctx, GPoint(fx, fy), 2);          // sole (heel/arch)
-  graphics_fill_circle(ctx, GPoint(fx, fy - 3), 2);      // sole (ball)
-  graphics_fill_circle(ctx, GPoint(fx + 1, fy - 5), 1);  // toe
+  graphics_fill_rect(ctx, GRect(fx - 2, fy - 1, 5, 4), 2, GCornersAll);     // ball
+  graphics_fill_rect(ctx, GRect(fx - 1, fy + 3, 3, 2), 1, GCornersBottom);  // heel
+  graphics_fill_circle(ctx, GPoint(fx - 2, fy - 3), 1);                     // little toe
+  graphics_fill_circle(ctx, GPoint(fx + 1, fy - 4), 1);                     // middle toes
+  graphics_fill_circle(ctx, GPoint(fx + 3, fy - 3), 1);                     // big toe
 }
 
+// Steps: two staggered footprints reading as a stride -- left foot trailing
+// (lower), right foot leading (higher).
 static void draw_steps_icon(GContext* ctx, int cx, int cy, GColor color) {
   graphics_context_set_fill_color(ctx, color);
-  // Left foot trails (lower), right foot leads (higher): reads as a stride.
-  draw_foot(ctx, cx - 4, cy + 3);
-  draw_foot(ctx, cx + 4, cy + 1);
+  draw_foot(ctx, cx - 5, cy + 2);
+  draw_foot(ctx, cx + 5, cy - 2);
 }
 
 // Draws the metric's icon centered in a band of TILE_ICON_H height whose top is
