@@ -140,7 +140,11 @@ static bool top_occupied(void) {
 
 static bool bottom_occupied(void) { return show_date; }
 
-static bool single_line(void) { return numeric_time && one_line_time; }
+// The "Numbers" language renders exact HH:MM digits and is always laid out as a
+// single big line, independent of the numeric/one-line toggles.
+static bool numeric_language(void) { return current_language == LANG_NUMERIC; }
+
+static bool single_line(void) { return numeric_language() || (numeric_time && one_line_time); }
 
 // Vertical room available to the time between the (optional) panels. Single-line
 // mode sizes against this so a short line of digits can grow to fill the band

@@ -16,6 +16,8 @@ static size_t append_string(char* buffer, size_t remaining, const char* str) {
 }
 
 void date_to_words(Language lang, int day, int month, int weekday, char* words, size_t length) {
+  // "Numbers" is not a date language; fall back to Norwegian word tables.
+  if (lang == LANG_NUMERIC) lang = LANG_NO;
   const DateStrings* strings = get_date_strings(lang);
   memset(words, 0, length);
   if (!strings || !strings->days || !strings->months) return;

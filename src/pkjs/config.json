@@ -18,7 +18,8 @@
         "options": [
           { "label": "Norsk", "value": "0" },
           { "label": "Dansk", "value": "1" },
-          { "label": "Svenska", "value": "2" }
+          { "label": "Svenska", "value": "2" },
+          { "label": "Numbers (01:23)", "value": "3" }
         ]
       }
     ]

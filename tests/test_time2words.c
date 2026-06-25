@@ -114,6 +114,23 @@ void test_numeric_24h(void) {
   assert_time_numeric_24(LANG_NO, 23, 45, "kvart på 0");
 }
 
+// LANG_NUMERIC ignores the `numeric` flag and renders exact HH:MM.
+void test_numeric_language_12h(void) {
+  assert_time(LANG_NUMERIC, 1, 23, "01:23");
+  assert_time(LANG_NUMERIC, 9, 5, "09:05");
+  assert_time(LANG_NUMERIC, 13, 23, "01:23");  // folds 13 -> 1
+  assert_time(LANG_NUMERIC, 0, 0, "12:00");    // midnight -> 12
+  assert_time(LANG_NUMERIC, 12, 30, "12:30");  // noon stays 12
+  assert_time(LANG_NUMERIC, 23, 59, "11:59");
+}
+
+void test_numeric_language_24h(void) {
+  assert_time_numeric_24(LANG_NUMERIC, 1, 23, "01:23");
+  assert_time_numeric_24(LANG_NUMERIC, 13, 23, "13:23");
+  assert_time_numeric_24(LANG_NUMERIC, 0, 0, "00:00");
+  assert_time_numeric_24(LANG_NUMERIC, 23, 59, "23:59");
+}
+
 int main(void) {
   UNITY_BEGIN();
   RUN_TEST(test_exact_hours);
@@ -131,5 +148,7 @@ int main(void) {
   RUN_TEST(test_swedish_basics);
   RUN_TEST(test_numeric);
   RUN_TEST(test_numeric_24h);
+  RUN_TEST(test_numeric_language_12h);
+  RUN_TEST(test_numeric_language_24h);
   return UNITY_END();
 }

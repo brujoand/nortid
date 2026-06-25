@@ -2,7 +2,9 @@
 
 #include <stddef.h>
 
-typedef enum { LANG_NO = 0, LANG_DA = 1, LANG_SV = 2 } Language;
+// LANG_NUMERIC is not a word language: it renders the time as exact HH:MM
+// digits and falls back to LANG_NO for the date words.
+typedef enum { LANG_NO = 0, LANG_DA = 1, LANG_SV = 2, LANG_NUMERIC = 3 } Language;
 
 typedef struct {
   const char* const* ones;

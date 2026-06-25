@@ -42,12 +42,28 @@ static size_t append_number(char* buffer, size_t remaining, int num, bool numeri
 
 void fuzzy_time_to_words(Language lang, int hours, int minutes, bool numeric, bool hour24,
                          char* words, size_t length) {
+  memset(words, 0, length);
+
+  // Numbers "language": exact, zero-padded HH:MM with no fuzzy rounding. 24h
+  // shows 0-23; otherwise fold to 12h with 0 displayed as 12.
+  if (lang == LANG_NUMERIC) {
+    int h = hours;
+    if (!hour24) {
+      if (h > 12) {
+        h -= 12;
+      } else if (h == 0) {
+        h = 12;
+      }
+    }
+    snprintf(words, length, "%02d:%02d", h, minutes);
+    return;
+  }
+
   const TimeStrings* strings = get_time_strings(lang);
   int fuzzy_hours = hours;
   int fuzzy_minutes = minutes;
 
   size_t remaining = length;
-  memset(words, 0, length);
 
   if (fuzzy_minutes > 0 && fuzzy_minutes < 15) {
     remaining -= append_number(words, remaining, fuzzy_minutes, numeric, strings);
