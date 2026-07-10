@@ -1,109 +1,59 @@
-# CLAUDE.md
+# nortid
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Pebble smartwatch watchface showing time and date as Scandinavian words.
+C (Pebble SDK) + JS (Clay config).
 
-## Project Overview
+## Hard rules
 
-Nortid is a Pebble smartwatch watchface that displays time and date in Norwegian text.
+- **Never push to `main`/`master`.** Feature branch + PR, always. Open the PR,
+  report the URL, stop — **only the human merges.**
+- **Conventional Commits** (`feat:`, `fix:`, `chore:`, …). Never hand-bump a version.
+- **`pre-commit` is the gate.** Run `pre-commit run --files <changed>` before
+  declaring a change done, and report the result.
+- **`mise` provisions the toolchain** (`mise install`). New worktrees need `mise trust`.
+- Plan every non-trivial task. If the plan fails, restart planning.
 
-## Build Commands
+## Workflow
 
-Build with Pebble SDK:
-```bash
-pebble build
-```
-
-Install to connected watch:
-```bash
-pebble install --phone <IP_ADDRESS>
-```
-
-Clean build artifacts:
-```bash
-pebble clean
-```
+Default branch is `master`. A `commit-msg` hook enforces `type(scope)?: description`;
+append `!` for breaking changes. The version is derived from git tags and released
+automatically on merge — never edit it by hand.
 
 ## Architecture
 
-Single-window Pebble watchface: a center time text layer, a top panel split
-into three configurable metric slots (steps / heart rate / sleep), and a
-bottom panel that shows the date when enabled.
+Single-window watchface: a center time text layer, a top panel split into three
+configurable metric slots (steps / heart rate / sleep), and a bottom panel that
+shows the date when enabled.
 
-**Key files:**
-- `src/c/nortid.c` - Main application: window setup, tick timer subscription, panel rendering, display refresh
-- `src/c/time2words.c` - Converts hours/minutes to fuzzy time text
-- `src/c/date2words.c` - Converts date to weekday/date/month format
-- `src/c/lang/` - Per-language word tables (Norwegian, Danish, Swedish)
-- `src/pkjs/config.json` - Clay settings UI; `package.json` `messageKeys` map config keys to app message keys
-- `docs/FONT_NOTES.md` - Time-font research takeaways: why we bundle a size ladder and measure-then-fit, and why the font is not monospaced
+- `src/c/nortid.c` — window setup, tick subscription, panel rendering, refresh
+- `src/c/time2words.c` — hours/minutes → fuzzy time text
+- `src/c/date2words.c` — date → weekday/date/month
+- `src/c/lang/` — per-language word tables (Norwegian, Danish, Swedish)
+- `src/pkjs/config.json` — Clay settings UI; `package.json` `messageKeys` maps
+  config keys to app message keys
+- `docs/FONT_NOTES.md` — why a size ladder is bundled and measure-then-fit is used
 
-**Data flow:**
-1. `main()` initializes window and subscribes to `MINUTE_UNIT` tick events
-2. Each minute, `refresh_clock()` is called
-3. `fuzzy_time_to_words()` converts current time to a localized string
-4. `date_to_words()` converts current date to a localized string
-5. The time text layer and the top/bottom panels are refreshed
+Flow: `main()` subscribes to `MINUTE_UNIT`; each minute `refresh_clock()` calls
+`fuzzy_time_to_words()` and `date_to_words()`, then refreshes the layers.
 
-**Norwegian time format:**
-- Uses 12-hour format with fuzzy rounding
-- Quarter/half hours and "over"/"på" relative expressions
-- Example: 2:30 → "halv tre"
+Norwegian time is 12-hour with fuzzy rounding and "over"/"på" relative
+expressions — 2:30 becomes "halv tre".
 
-## SDK Setup
+## Commands
 
-Install pebble-tool via pip:
 ```bash
-pip install pebble-tool
-```
-
-## Testing
-
-Run unit tests (requires gcc):
-```bash
-make test
-```
-
-Run individual test suites:
-```bash
-make test-time
-make test-date
-```
-
-Clean test artifacts:
-```bash
+make test                       # both suites (needs gcc)
+make test-time | make test-date # single suite; no finer granularity
 make clean
+pebble build                    # needs `pip install pebble-tool`
+pebble install --phone <IP>
+pre-commit run --files <changed files>
 ```
 
-## Pre-commit Hooks
+## Gotchas
 
-Install pre-commit (via mise):
-```bash
-mise use pipx:pre-commit
-mise x -- pre-commit install
-```
-
-Run hooks manually:
-```bash
-mise x -- pre-commit run --all-files
-```
-
-Install the commit-msg hook too:
-```bash
-mise x -- pre-commit install --hook-type commit-msg
-```
-
-Hooks configured:
-- trailing-whitespace
-- end-of-file-fixer
-- clang-format (Google style)
-- gitleaks (secret detection)
-- make test (unit tests)
-- conventional-commit (commit-msg stage, enforces `type: message` format)
-
-## Commit Convention
-
-All commits must use [Conventional Commits](https://www.conventionalcommits.org/) format: `type(scope)?: description`
-
-Prefixes: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
-
-Append `!` for breaking changes (e.g. `feat!: remove legacy API`)
+- **Submodules are required.** `tests/unity` must be checked out or `make test`
+  won't compile: `git submodule update --init`.
+- `gitleaks` allowlists pebble-tool's Firebase web API key — it is public.
+- Pre-commit also runs `clang-format` (Google style) and `make test`. Install the
+  commit-msg hook too: `mise x -- pre-commit install --hook-type commit-msg`.
