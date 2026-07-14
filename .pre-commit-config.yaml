@@ -1,15 +1,20 @@
+# tests/unity/ is vendored upstream source (see its README) — formatters must
+# not touch it or it stops being diffable against upstream. gitleaks still scans it.
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
       - id: trailing-whitespace
+        exclude: ^tests/unity/
       - id: end-of-file-fixer
+        exclude: ^tests/unity/
 
   - repo: https://github.com/pre-commit/mirrors-clang-format
     rev: v17.0.6
     hooks:
       - id: clang-format
         types_or: [c, c++]
+        exclude: ^tests/unity/
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.18.1
