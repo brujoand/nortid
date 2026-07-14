@@ -52,8 +52,9 @@ pre-commit run --files <changed files>
 
 ## Gotchas
 
-- **Submodules are required.** `tests/unity` must be checked out or `make test`
-  won't compile: `git submodule update --init`.
+- **Unity is vendored, not a submodule.** `tests/unity/` is a byte-exact copy of
+  upstream pinned in `tests/unity/README.md`. Never edit it; upgrade by replacing
+  the files and updating that README.
 - `gitleaks` allowlists pebble-tool's Firebase web API key — it is public.
 - Pre-commit also runs `clang-format` (Google style) and `make test`. Install the
   commit-msg hook too: `mise x -- pre-commit install --hook-type commit-msg`.
