@@ -1,3 +1,5 @@
+default_install_hook_types: [pre-commit, commit-msg]
+
 # tests/unity/ is vendored upstream source (see its README) — formatters must
 # not touch it or it stops being diffable against upstream. gitleaks still scans it.
 repos:

@@ -56,5 +56,9 @@ pre-commit run --files <changed files>
   upstream pinned in `tests/unity/README.md`. Never edit it; upgrade by replacing
   the files and updating that README.
 - `gitleaks` allowlists pebble-tool's Firebase web API key — it is public.
-- Pre-commit also runs `clang-format` (Google style) and `make test`. Install the
-  commit-msg hook too: `mise x -- pre-commit install --hook-type commit-msg`.
+- Pre-commit also runs `clang-format` (Google style) and `make test`.
+- **The hooks are tracked, not installed.** `git config core.hooksPath .githooks`
+  once per clone makes both the pre-commit and commit-msg gates live. The
+  commit-msg one has to be local: the version comes from the commit types, and
+  `pre-commit run --all-files` does not run that stage, so CI cannot check it
+  for you.
